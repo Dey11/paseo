@@ -4,6 +4,12 @@ Paseo is a mobile app for monitoring and controlling your local AI coding agents
 
 **Supported agents:** Claude Code, Codex, GitHub Copilot, OpenCode, and Pi.
 
+## Personal fork context
+
+This checkout is Dey's personal Paseo downstream, not the official `getpaseo/paseo` product checkout. Before non-trivial work, read [docs/fork-docs/README.md](docs/fork-docs/README.md). The fork docs own personal goals, supported deployment topology, testing expectations, release boundaries, and upstream policy. They override official-product assumptions when the two differ.
+
+Do not publish to official Paseo services, package names, application identifiers, Expo projects, update channels, container registries, or GitHub releases. Do not make the fork depend on the official relay, Cloudflare deployments, Hub, or store infrastructure unless the user explicitly chooses that service and target.
+
 ## Repository map
 
 This is an npm workspace monorepo:
@@ -23,6 +29,7 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 
 | Doc                                                                | What's in it                                                                                                                   |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| [docs/fork-docs/README.md](docs/fork-docs/README.md)               | Personal fork intent, topology, workflow, testing, distribution, and upstream policy                                           |
 | [docs/product.md](docs/product.md)                                 | What Paseo is, who it's for, where it's going                                                                                  |
 | [docs/architecture.md](docs/architecture.md)                       | System design, package layering, WebSocket protocol, agent lifecycle, data flow                                                |
 | [docs/agent-lifecycle.md](docs/agent-lifecycle.md)                 | Agent states, parent/child relationships, archive semantics, tabs vs archive, subagents track                                  |
