@@ -10,6 +10,8 @@ The relay transports the daemon connection. Agent processes, repositories, crede
 
 This is an external dependency owned by upstream. Its continued availability to third-party builds is not guaranteed. Do not change relay framing, pairing, encryption, or wire compatibility without first choosing a fork-owned relay or moving the primary topology to Tailscale. Every release that changes connection code must smoke-test a real pairing through `relay.paseo.sh`.
 
+The fork plans to carry desktop development-server traffic through a separate encrypted Paseo connection. The current relay protocol can route that opaque binary traffic and has no official-client attestation step. Upstream has not promised third-party forks unlimited sustained bandwidth, so the first delivery gate is a bounded live-relay proof. See [desktop-port-forwarding.md](desktop-port-forwarding.md).
+
 ## Tailscale recovery
 
 Install Tailscale on the VPS, Mac, and Android phone before relying on the fork away from home. Bind the daemon to its exact Tailscale address when direct recovery is needed:
@@ -46,7 +48,7 @@ Files, terminals, agents, worktrees, and Git actions execute on the VPS. Electro
 | Official GitHub releases and updates      | Do not use; publish only to the fork repository                               |
 | Official npm packages or containers       | Do not publish; keep package publication outside the personal release process |
 
-The production hosted relay is not the Cloudflare Worker under `packages/relay`. Do not deploy that package and assume it reproduces the current service. A fork-owned relay requires a separate infrastructure decision and a compatibility test against the current daemon and clients.
+The official hosted service is implemented in the separate open-source [getpaseo/paseo-relay](https://github.com/getpaseo/paseo-relay) repository. The adapter under `packages/relay` is not the current production service. A fork-owned deployment still requires an infrastructure decision and a compatibility test against the current daemon and clients.
 
 ## Provider billing and authentication
 

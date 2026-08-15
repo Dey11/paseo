@@ -7,6 +7,7 @@ Read this file before non-trivial work. Then read the subject doc that owns the 
 - [development.md](development.md) — local and VPS development loops
 - [testing.md](testing.md) — feature verification and acceptance evidence
 - [connectivity-and-services.md](connectivity-and-services.md) — the official relay, Tailscale recovery, the VPS, and service dependencies
+- [desktop-port-forwarding.md](desktop-port-forwarding.md) — plan for the desktop Ports tab and relay-backed VPS port forwarding
 - [distribution.md](distribution.md) — GitHub-built desktop and Android releases
 - [android-eas-fallback.md](android-eas-fallback.md) — optional fork-owned Expo/EAS setup
 - [licensing.md](licensing.md) — AGPL obligations for private use and shared builds
