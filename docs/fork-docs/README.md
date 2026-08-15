@@ -6,8 +6,10 @@ Read this file before non-trivial work. Then read the subject doc that owns the 
 
 - [development.md](development.md) — local and VPS development loops
 - [testing.md](testing.md) — feature verification and acceptance evidence
-- [connectivity-and-services.md](connectivity-and-services.md) — Tailscale, the VPS, provider authentication, and service dependencies
-- [distribution.md](distribution.md) — personal macOS and Android artifacts
+- [connectivity-and-services.md](connectivity-and-services.md) — the official relay, Tailscale recovery, the VPS, and service dependencies
+- [distribution.md](distribution.md) — GitHub-built desktop and Android releases
+- [android-eas-fallback.md](android-eas-fallback.md) — optional fork-owned Expo/EAS setup
+- [licensing.md](licensing.md) — AGPL obligations for private use and shared builds
 - [upstream.md](upstream.md) — upstream sync and divergence policy
 
 The official docs remain authoritative for Paseo's current architecture and implementation conventions. These fork docs own personal product intent, operating topology, support priorities, and release policy. When an official-product assumption conflicts with a fork decision, follow the fork doc and keep the deviation explicit.
@@ -25,14 +27,14 @@ The primary clients are:
 - the Electron desktop app on macOS;
 - the Android app on a personal phone.
 
-The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. Clients reach the daemon through Tailscale. Development servers remain reachable through SSH forwarding, Tailscale, or a private service URL.
+The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. Clients reach the daemon through Paseo's official relay. Tailscale remains the private recovery path and can also expose development servers.
 
 The desktop app is a client in this topology. Its built-in local daemon can be disabled while remote hosts stay connected.
 
 ## Product boundaries
 
-- Tailscale direct connections are the default remote transport.
-- The official relay is not a required dependency. Protocol compatibility may make it work, but do not design around continued access to upstream infrastructure.
+- `relay.paseo.sh` is the default remote transport while the fork remains protocol-compatible.
+- The official relay is upstream-owned infrastructure. Keep direct Tailscale access working so an upstream outage, policy change, or incompatible fork protocol does not strand the operator.
 - Cloudflare deployments, hosted Hub, store submission, push infrastructure, and public websites are optional and out of scope until explicitly requested.
 - Paseo does not broker model billing. Provider subscriptions and API usage belong to the provider CLI authenticated on the VPS.
 - Local speech is preferred when it meets the workflow. Paid speech APIs remain opt-in.
@@ -50,6 +52,7 @@ Keep personal changes cohesive. Avoid drive-by cleanup and broad formatting beca
 - Do not restart or mutate the stable daemon on port `6767` without explicit permission.
 - Do not publish official npm packages or write to official Paseo release targets.
 - Do not push release tags until the fork release workflow and identifiers are isolated.
+- Do not share installers until the release includes the fork's license notices and source-code offer.
 - Treat the VPS daemon as the authority for code, credentials, agents, and terminals.
 
 ## Definition of done
