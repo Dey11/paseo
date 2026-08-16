@@ -7,7 +7,8 @@ Read this file before non-trivial work. Then read the subject doc that owns the 
 - [development.md](development.md) — local and VPS development loops
 - [testing.md](testing.md) — feature verification and acceptance evidence
 - [connectivity-and-services.md](connectivity-and-services.md) — the HanabiCode connection topology, VPS, recovery path, and service dependencies
-- [relay-options.md](relay-options.md) — the fork-owned relay decision, deployment contract, and transport boundary
+- [cloudflare-tunnel.md](cloudflare-tunnel.md) — the planned user-owned Tunnel transport, implementation, setup, pricing, security, and acceptance plan
+- [relay-options.md](relay-options.md) — the current relay compatibility path and fallback deployment contract
 - [desktop-port-forwarding.md](desktop-port-forwarding.md) — desktop Ports tab and relay-backed VPS port forwarding
 - [distribution.md](distribution.md) — GitHub-built desktop and Android releases
 - [android-eas-fallback.md](android-eas-fallback.md) — optional fork-owned Expo/EAS setup
@@ -29,7 +30,7 @@ The primary clients are:
 - the Electron desktop app on macOS;
 - the Android app on a personal phone.
 
-The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. Clients normally reach the daemon through the fork-owned HanabiCode relay on the same VPS. Tailscale remains the private recovery path and can also expose development servers.
+The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. The planned normal transport is a user-owned Cloudflare Tunnel carrying direct HanabiCode E2EE; the current implementation remains relay-v2 until that plan passes packaged acceptance. Tailscale remains the private recovery path and can also expose development servers.
 
 The desktop app is a client in this topology. Its built-in local daemon can be disabled while remote hosts stay connected.
 
@@ -39,9 +40,9 @@ Electron adds a **Ports** tab beside Files. It discovers TCP listeners owned by 
 
 ## Product boundaries
 
-- A fork-owned HanabiCode relay is the default remote transport. Do not use upstream relay infrastructure for HanabiCode releases.
-- Keep direct Tailscale access working so a relay-process, reverse-proxy, or DNS failure does not strand the operator. See [relay-options.md](relay-options.md).
-- Cloudflare deployments, hosted Hub, store submission, push infrastructure, and public websites are optional and out of scope until explicitly requested.
+- Implement the user-owned Cloudflare Tunnel path in [cloudflare-tunnel.md](cloudflare-tunnel.md) before making it the release default. Keep relay-v2 available during migration; do not use upstream relay infrastructure for HanabiCode releases.
+- Keep direct Tailscale access working so a Tunnel, DNS, relay, or daemon failure does not strand the operator.
+- A HanabiCode-operated managed tunnel service, hosted Hub, store submission, push infrastructure, and public websites remain optional and out of scope until explicitly requested.
 - Paseo does not broker model billing. Provider subscriptions and API usage belong to the provider CLI authenticated on the VPS.
 - Local speech is preferred when it meets the workflow. Paid speech APIs remain opt-in.
 - macOS and Android receive primary manual QA. Browser web is the fast shared-UI harness. Keep Windows, Linux, and iOS buildable when the cost is reasonable, but do not claim manual coverage that did not happen.

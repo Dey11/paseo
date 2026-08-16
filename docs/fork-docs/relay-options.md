@@ -1,12 +1,12 @@
-# HanabiCode remote transport
+# HanabiCode relay fallback
 
-HanabiCode uses a fork-owned relay on the existing VPS for normal remote connections. Tailscale direct access remains the recovery path. This keeps the current pairing and Ports UX without depending on upstream infrastructure.
+Status: current compatibility path. The target remote transport is the user-owned Cloudflare Tunnel design in [cloudflare-tunnel.md](cloudflare-tunnel.md). Keep this relay available during implementation, migration, and rollback because the current pairing offer and daemon-key E2EE path are relay-only.
 
 The relay is an untrusted WebSocket router. The daemon public key in the pairing offer remains the trust anchor, and application frames remain end-to-end encrypted between HanabiCode and the daemon. The relay can observe IP addresses, routing identifiers, timing, and frame sizes. It cannot read or modify authenticated application data.
 
-## Decision
+## Fallback decision
 
-Fork [getpaseo/paseo-relay](https://github.com/getpaseo/paseo-relay) into `Dey11/hanabicode-relay`, retain its Apache-2.0 notices, and run its generic container on the existing VPS. Put Caddy in front of it for the public TLS endpoint. Cloudflare Tunnel may replace the public Caddy ingress later, but it is not the relay protocol.
+If a relay is needed during the Tunnel transition, fork [getpaseo/paseo-relay](https://github.com/getpaseo/paseo-relay) into `Dey11/hanabicode-relay`, retain its Apache-2.0 notices, and run its generic container on the existing VPS. Put Caddy in front of it for the public TLS endpoint.
 
 Keep the relay and daemon on the same VPS for the first deployment. A separate highly available relay does not make that daemon available when its host is down. Use a process manager with automatic restart and retain Tailscale direct access for relay-process or ingress failures.
 
@@ -16,15 +16,16 @@ Do not deploy `packages/relay/src/cloudflare-adapter.ts` for this topology. It i
 
 | Option                             | Pairing and Ports UX        | Operations and lock-in                                       | Decision                   |
 | ---------------------------------- | --------------------------- | ------------------------------------------------------------ | -------------------------- |
-| Relay on the existing VPS          | Unchanged                   | Lowest cost; one failure domain with the daemon              | Use now                    |
+| Relay on the existing VPS          | Unchanged                   | Lowest cost; one failure domain with the daemon              | Compatibility path         |
 | Relay on Fly.io                    | Unchanged                   | Mature multi-node adapter; separate compute and traffic cost | Revisit for multiple hosts |
-| Cloudflare Tunnel to the VPS relay | Unchanged                   | Hides VPS ingress; adds Cloudflare as the public path        | Optional ingress           |
+| Cloudflare Tunnel to the VPS relay | Unchanged                   | Hides relay ingress but keeps both services                  | Optional fallback ingress  |
+| Cloudflare Tunnel to daemon E2EE   | Unchanged after V3 ships    | User-owned connector; no packet relay                        | Target; see Tunnel plan    |
 | Cloudflare Durable Objects relay   | Unchanged                   | Managed edge and per-message billing; Cloudflare-specific    | Do not use now             |
 | Tailscale or Headscale direct      | Separate network enrollment | Fast raw TCP and no relay on a direct path                   | Keep as recovery           |
 | SSH forwarding                     | Manual and desktop-oriented | Low infrastructure cost; poor Android and pairing UX         | Emergency tool             |
 | New relay implementation           | Can remain unchanged        | Full ownership; highest correctness and operations burden    | Defer                      |
 
-Cloudflare Tunnel's published TCP mode requires client-side `cloudflared` or WARP. It cannot replace HanabiCode's mobile and desktop relay path while preserving one-app pairing. It can expose the self-hosted WebSocket relay because both HanabiCode clients and the daemon already speak that protocol.
+Cloudflare Tunnel can publish the daemon's HTTP and WebSocket service without client-side `cloudflared` or WARP. Its generic raw-TCP mode has a client-side requirement, but HanabiCode does not need that mode because port streams are encapsulated in the daemon WebSocket. Direct Tunnel replacement still requires the V3 pairing and direct-E2EE work in [cloudflare-tunnel.md](cloudflare-tunnel.md).
 
 Tailscale works with HanabiCode's direct TCP connection and desktop port-forwarding lease. It still requires Tailscale enrollment on the VPS, Mac, and Android device. Headscale can own the coordination server, but it continues to depend on Tailscale clients and adds a second onboarding flow.
 
@@ -75,7 +76,7 @@ The relay process does not need the HanabiCode password or daemon private key. M
 
 The pairing offer is effectively an operator credential. Store it as carefully as the direct-connection password.
 
-## Migration
+## Relay fallback setup
 
 1. Create `Dey11/hanabicode-relay` from the Apache-2.0 relay source and pin the imported revision.
 2. Choose the final relay hostname and configure its DNS and TLS certificate.
@@ -84,10 +85,10 @@ The pairing offer is effectively an operator credential. Store it as carefully a
 5. Configure the HanabiCode daemon with the runtime contract above and generate a new HanabiCode pairing offer.
 6. Pair clean macOS and Android installs. Existing profiles that contain `relay.paseo.sh` must be re-paired; do not silently redirect an upstream endpoint.
 7. Verify agent control, terminal binary frames, one forwarded HTTP page, WebSocket/HMR, reconnect, app restart, and relay-process restart.
-8. Save and test the Tailscale direct profile before treating the relay as the normal remote path.
+8. Save and test the Tailscale direct profile before relying on the relay fallback.
 9. Observe resource and bandwidth use before allowing additional users or sustained large transfers.
 
-## Long-term boundary
+## Transport boundary
 
 Keep daemon identity separate from transport identity:
 
@@ -97,6 +98,6 @@ Keep daemon identity separate from transport identity:
 - remote transports use the same daemon-key E2EE handshake;
 - UI state refers to the host, not the current relay hostname.
 
-A future pairing offer can carry ordered relay and direct descriptors. Clients should prefer an authenticated direct path when available and fall back to the HanabiCode relay without changing the workspace or Ports UI.
+The V3 pairing offer in the Tunnel plan carries ordered transport descriptors. Clients should prefer an authenticated direct path when available and can retain the HanabiCode relay as a fallback without changing the workspace or Ports UI.
 
 Do not create new cryptography for a future relay. A clean HanabiCode relay can preserve the current v2 routing contract and encrypted-channel implementation. Budget one to three weeks for a bounded, observable single-node service and substantially more for multi-node ownership, draining, convergence, and production soak. Build it only when the fork needs behavior the Apache relay cannot provide cleanly.

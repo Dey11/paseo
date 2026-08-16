@@ -1,10 +1,16 @@
 # Fork connectivity and services
 
-The fork uses a self-hosted HanabiCode relay for normal remote connections. Tailscale direct access remains the recovery path. See [relay-options.md](relay-options.md) for the selected deployment, environment contract, security constraints, and alternatives. Use the official [connectivity](../../public-docs/connectivity.md) and [security](../../public-docs/security.md) docs for the inherited connection and encryption model.
+HanabiCode is moving from the inherited relay-v2 transport to a user-owned Cloudflare Tunnel carrying a direct daemon-key E2EE WebSocket. The current source still needs relay-v2 for pairing and E2EE, so keep the relay compatibility path until the Tunnel acceptance matrix passes. [cloudflare-tunnel.md](cloudflare-tunnel.md) owns the target architecture, implementation, setup, pricing, and migration. [relay-options.md](relay-options.md) owns the current relay fallback. Tailscale direct access remains the recovery path.
 
-## HanabiCode relay
+## Cloudflare Tunnel target
 
-Run the fork-owned relay on the same VPS as the daemon. The daemon connects to the relay on `127.0.0.1:4000`; macOS and Android connect to its public TLS hostname. Pairing remains end-to-end encrypted and uses the daemon public key as its trust anchor.
+Each daemon operator creates a named tunnel and hostname in their own Cloudflare account. `cloudflared` runs beside the daemon and maps that hostname to a dedicated loopback E2EE ingress, proposed as `127.0.0.1:6770`. The existing daemon at `127.0.0.1:6769` remains private. macOS and Android pair through a transport-neutral HanabiCode offer and need no Cloudflare account or client software.
+
+Do not advertise the target as available until the daemon has an explicit direct-E2EE route and clients support the new pairing offer. The current direct connection provides TLS and password authentication but does not carry the relay encrypted-channel handshake.
+
+## Relay compatibility
+
+During migration, run the fork-owned relay on the same VPS as the daemon. The daemon connects to the relay on `127.0.0.1:4000`; macOS and Android connect to its public TLS hostname. Pairing remains end-to-end encrypted and uses the daemon public key as its trust anchor.
 
 The relay transports the daemon connection. Agent processes, repositories, credentials, terminals, and development servers still live on the VPS. The connection is end-to-end encrypted; the relay does not replace daemon authentication or the trust established during pairing.
 
@@ -39,9 +45,10 @@ Files, terminals, agents, worktrees, and Git actions execute on the VPS. Electro
 
 | Service or destination                    | Fork decision                                                                 |
 | ----------------------------------------- | ----------------------------------------------------------------------------- |
-| HanabiCode relay and pairing              | Self-host on the existing VPS; retain Tailscale recovery                      |
+| Cloudflare Tunnel transport               | User-owned named tunnel after direct E2EE and packaged acceptance             |
+| HanabiCode relay and pairing              | Compatibility and rollback during Tunnel migration                            |
 | `relay.paseo.sh`                          | Do not use in HanabiCode releases                                             |
-| Cloudflare Tunnel                         | Optional ingress for the HanabiCode relay; not a replacement transport        |
+| HanabiCode-managed Tunnel service         | Do not operate unless a separate hosted-service project is approved           |
 | Cloudflare app or website deployments     | Do not use unless a specific fork-owned target is selected                    |
 | Hosted Paseo Hub                          | Do not use                                                                    |
 | Official Expo/EAS project                 | Do not use; GitHub builds Android directly                                    |
@@ -49,7 +56,7 @@ Files, terminals, agents, worktrees, and Git actions execute on the VPS. Electro
 | GitHub releases and updates               | Publish only through `Dey11/hanabicode`                                       |
 | Official npm packages or containers       | Do not publish; keep package publication outside the personal release process |
 
-The selected relay service lives in the separate fork-owned `Dey11/hanabicode-relay` repository. The adapter under `packages/relay` remains an unused Cloudflare Durable Objects alternative.
+The relay fallback can live in a separate fork-owned `Dey11/hanabicode-relay` repository. The adapter under `packages/relay` remains an unused Cloudflare Durable Objects alternative. The selected Tunnel design uses `cloudflared` to publish the daemon; it does not deploy that adapter.
 
 ## Provider billing and authentication
 
@@ -67,7 +74,8 @@ Keep paid services optional:
 
 | Capability                | Default fork choice                                           |
 | ------------------------- | ------------------------------------------------------------- |
-| Normal remote connection  | HanabiCode relay on the existing VPS                          |
+| Normal remote connection  | User-owned Cloudflare Tunnel after the direct-E2EE plan ships |
+| Migration transport       | HanabiCode relay on the existing VPS                          |
 | Recovery networking       | Tailscale personal tailnet                                    |
 | Agent compute and storage | Existing VPS                                                  |
 | Codex and Claude          | Existing provider subscriptions on the VPS                    |
