@@ -14,7 +14,7 @@ describe("server config", () => {
     await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
   });
 
-  test("records when the daemon is managed by Paseo Desktop", async () => {
+  test("records when the daemon is managed by HanabiCode Desktop", async () => {
     const paseoHome = await mkdtemp(path.join(os.tmpdir(), "paseo-config-desktop-managed-"));
     roots.push(paseoHome);
 

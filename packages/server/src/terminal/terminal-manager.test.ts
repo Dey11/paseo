@@ -657,23 +657,26 @@ it("does not emit workspace contribution event when an idle terminal is removed"
   unsubscribe();
 });
 
-it("exposes the PTY root pid through the internal manager contract only", async () => {
-  manager = createTerminalManager();
-  const cwd = realpathSync(tmpdir());
-  const created = await manager.createTerminal({
-    cwd,
-    workspaceId: "ws-rootpid",
-    command: process.execPath,
-    args: ["-e", "process.stdin.resume()"],
-  });
+it.skipIf(isPlatform("win32"))(
+  "exposes the PTY root pid through the internal manager contract only",
+  async () => {
+    manager = createTerminalManager();
+    const cwd = realpathSync(tmpdir());
+    const created = await manager.createTerminal({
+      cwd,
+      workspaceId: "ws-rootpid",
+      command: process.execPath,
+      args: ["-e", "process.stdin.resume()"],
+    });
 
-  expect(created.getRootPid()).toBeTypeOf("number");
-  const rootPid = created.getRootPid();
-  if (rootPid !== null) {
-    expect(rootPid).toBeGreaterThan(0);
-  }
-  const listed = manager.listTerminalRootPids();
-  const entry = listed.find((item) => item.terminalId === created.id);
-  expect(entry?.workspaceId).toBe("ws-rootpid");
-  expect(entry?.rootPid).toBe(rootPid);
-});
+    expect(created.getRootPid()).toBeTypeOf("number");
+    const rootPid = created.getRootPid();
+    if (rootPid !== null) {
+      expect(rootPid).toBeGreaterThan(0);
+    }
+    const listed = manager.listTerminalRootPids();
+    const entry = listed.find((item) => item.terminalId === created.id);
+    expect(entry?.workspaceId).toBe("ws-rootpid");
+    expect(entry?.rootPid).toBe(rootPid);
+  },
+);

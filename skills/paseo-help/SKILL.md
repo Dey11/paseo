@@ -77,8 +77,8 @@ Substitute the status-reported `PASEO_HOME` for `~/.paseo`. In the official Dock
 
 If diagnosing the bundled daemon on a computer with Paseo Desktop installed, but `paseo` is not on `PATH`, the bundled CLI is at:
 
-- macOS: `/Applications/Paseo.app/Contents/Resources/bin/paseo`
-- Linux: `<install-dir>/resources/bin/paseo`
+- macOS: `/Applications/HanabiCode.app/Contents/Resources/bin/hanabicode`
+- Linux: `<install-dir>/resources/bin/hanabicode`
 - Windows: `C:\Program Files\Paseo\resources\bin\paseo.cmd`
 
 Offer to fix the PATH or symlink; do not change shell configuration silently.

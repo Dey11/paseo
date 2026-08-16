@@ -51,7 +51,7 @@ try {
     const config = JSON.parse(await readFile(join(paseoHome, "config.json"), "utf-8"));
 
     assert.strictEqual(result.configPath, join(paseoHome, "config.json"));
-    assert.strictEqual(result.restartCommand, "paseo daemon restart");
+    assert.strictEqual(result.restartCommand, "hanabicode daemon restart");
     assert.strictEqual(config.daemon.listen, "127.0.0.1:9999");
     assert.strictEqual(config.daemon.relay.enabled, false);
     assert.notStrictEqual(config.daemon.auth.password, "shared-secret");

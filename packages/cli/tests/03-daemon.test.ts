@@ -328,7 +328,7 @@ try {
             runLocalPaseo(["daemon", "pair", "--home", foreignHome, "--json"], {
               PASEO_HOME: foreignHome,
             }),
-          (result) => result.stderr.includes("different Paseo home"),
+          (result) => result.stderr.includes("different HanabiCode home"),
           (result) => `Pairing did not report the daemon identity mismatch: ${result.stderr}`,
         );
         assert.notStrictEqual(
@@ -337,7 +337,7 @@ try {
           "pairing should reject a daemon owned by another home",
         );
         assert(
-          foreignPairing.stderr.includes("different Paseo home"),
+          foreignPairing.stderr.includes("different HanabiCode home"),
           "pairing should explain the daemon identity mismatch",
         );
         assert(

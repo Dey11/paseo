@@ -16,7 +16,7 @@ import type { TerminalActivity, TerminalActivityState } from "@getpaseo/protocol
 
 const { Terminal } = xterm;
 const require = createRequire(import.meta.url);
-const PASEO_CLI_BIN_ENTRY = "@getpaseo/cli/bin/paseo";
+const HANABICODE_CLI_BIN_ENTRY = "@getpaseo/cli/bin/hanabicode";
 let nodePtySpawnHelperChecked = false;
 const TERMINAL_TITLE_DEBOUNCE_MS = 150;
 const TERMINAL_EXIT_OUTPUT_LINE_LIMIT = 12;
@@ -431,7 +431,7 @@ export function resolvePaseoCliExecutablePath(): string | null {
 
 function resolvePaseoCliBinEntrypoint(): string | null {
   try {
-    return require.resolve(PASEO_CLI_BIN_ENTRY);
+    return require.resolve(HANABICODE_CLI_BIN_ENTRY);
   } catch {
     return null;
   }
@@ -468,7 +468,9 @@ function resolvePaseoCliShim(binDir: string): string | null {
 }
 
 function paseoCliShimNames(): string[] {
-  return process.platform === "win32" ? ["paseo.cmd", "paseo.exe", "paseo"] : ["paseo"];
+  return process.platform === "win32"
+    ? ["hanabicode.cmd", "hanabicode.exe", "hanabicode"]
+    : ["hanabicode"];
 }
 
 function resolveZshShellIntegrationRuntimeDir(): string {

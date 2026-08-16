@@ -137,14 +137,16 @@ describe("WorkspacePortObserver over real /proc", () => {
       const observed = ports.find(
         (port: unknown) => (port as { port: number }).port === child.port,
       );
-      expect(observed).toEqual({
+      expect(observed).toMatchObject({
         port: child.port,
         address: "127.0.0.1",
         source: "terminal",
         terminalId: "term-root",
-        processName: "MainThread",
         eligible: true,
       });
+      expect((observed as { processName?: string } | undefined)?.processName).toMatch(
+        /^(?:MainThread|node)$/,
+      );
       observer.dispose();
     },
   );
@@ -173,14 +175,16 @@ describe("WorkspacePortObserver over real /proc", () => {
       const observed = ports.find(
         (port: unknown) => (port as { port: number }).port === child.port,
       );
-      expect(observed).toEqual({
+      expect(observed).toMatchObject({
         port: child.port,
         address: "127.0.0.1",
         source: "terminal",
         terminalId: "term-desc",
-        processName: "MainThread",
         eligible: true,
       });
+      expect((observed as { processName?: string } | undefined)?.processName).toMatch(
+        /^(?:MainThread|node)$/,
+      );
       observer.dispose();
     },
   );

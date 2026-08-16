@@ -81,7 +81,7 @@ console.log("=== CLI IPC Target Helpers ===\n");
 }
 
 {
-  console.log("Test 6: default host resolution tries local IPC first, then localhost fallback");
+  console.log("Test 6: default host resolution tries local IPC first, then loopback fallback");
   const paseoHome = mkdtempSync(path.join(os.tmpdir(), "paseo-client-targets-"));
   try {
     mkdirSync(paseoHome, { recursive: true });
@@ -91,7 +91,7 @@ console.log("=== CLI IPC Target Helpers ===\n");
     );
     assert.deepStrictEqual(resolveDefaultDaemonHosts({ PASEO_HOME: paseoHome }), [
       "unix:///tmp/paseo-from-pid.sock",
-      "localhost:6767",
+      "127.0.0.1:6769",
     ]);
     const previousHome = process.env.PASEO_HOME;
     const previousHost = process.env.PASEO_HOST;
@@ -105,11 +105,11 @@ console.log("=== CLI IPC Target Helpers ===\n");
   } finally {
     rmSync(paseoHome, { recursive: true, force: true });
   }
-  console.log("✓ default host resolution tries local IPC first, then localhost fallback\n");
+  console.log("✓ default host resolution tries local IPC first, then loopback fallback\n");
 }
 
 {
-  console.log("Test 7: configured TCP host is preserved before the localhost fallback");
+  console.log("Test 7: configured TCP host is preserved before the loopback fallback");
   const paseoHome = mkdtempSync(path.join(os.tmpdir(), "paseo-client-targets-tcp-"));
   try {
     assert.deepStrictEqual(
@@ -117,12 +117,12 @@ console.log("=== CLI IPC Target Helpers ===\n");
         PASEO_HOME: paseoHome,
         PASEO_LISTEN: "127.0.0.1:7777",
       }),
-      ["127.0.0.1:7777", "localhost:6767"],
+      ["127.0.0.1:7777", "127.0.0.1:6769"],
     );
   } finally {
     rmSync(paseoHome, { recursive: true, force: true });
   }
-  console.log("✓ configured TCP host is preserved before the localhost fallback\n");
+  console.log("✓ configured TCP host is preserved before the loopback fallback\n");
 }
 
 {
@@ -145,7 +145,7 @@ console.log("=== CLI IPC Target Helpers ===\n");
         PASEO_HOME: paseoHome,
         PASEO_LISTEN: "127.0.0.1:7777",
       }),
-      ["unix:///tmp/paseo-priority.sock", "127.0.0.1:7777", "localhost:6767"],
+      ["unix:///tmp/paseo-priority.sock", "127.0.0.1:7777", "127.0.0.1:6769"],
     );
   } finally {
     rmSync(paseoHome, { recursive: true, force: true });
@@ -181,11 +181,11 @@ console.log("=== CLI IPC Target Helpers ===\n");
       "env-secret",
       "Bare host should pick up env var password",
     );
-    assert.strictEqual(resolveDaemonPassword("localhost:6767"), "env-secret");
+    assert.strictEqual(resolveDaemonPassword("localhost:6769"), "env-secret");
 
     process.env.PASEO_PASSWORD = "";
     assert.strictEqual(
-      resolveDaemonPassword("localhost:6767"),
+      resolveDaemonPassword("localhost:6769"),
       undefined,
       "Empty env var should be treated as unset",
     );

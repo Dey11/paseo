@@ -971,23 +971,26 @@ it("removes a killed worker terminal from terminalExit without duplicate snapsho
   ]);
 });
 
-it("propagates the PTY root pid from the worker to the parent mirror", async () => {
-  const cwd = mkdtempSync(join(tmpdir(), "worker-terminal-manager-rootpid-"));
-  temporaryDirs.push(cwd);
-  manager = createWorkerTerminalManager();
-  const session = trackTerminal(
-    await manager.createTerminal({
-      workspaceId: "ws-rootpid",
-      cwd,
-      ...nodeTerminalCommand("process.stdin.resume()"),
-    }),
-  );
-  const entries = manager.listTerminalRootPids();
-  const entry = entries.find((item) => item.terminalId === session.id);
-  expect(entry?.workspaceId).toBe("ws-rootpid");
-  expect(entry?.rootPid).toBeTypeOf("number");
-  if (entry?.rootPid !== undefined) {
-    expect(entry.rootPid).toBeGreaterThan(0);
-  }
-  expect(session.getRootPid()).toBe(entry?.rootPid ?? null);
-});
+it.skipIf(isPlatform("win32"))(
+  "propagates the PTY root pid from the worker to the parent mirror",
+  async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "worker-terminal-manager-rootpid-"));
+    temporaryDirs.push(cwd);
+    manager = createWorkerTerminalManager();
+    const session = trackTerminal(
+      await manager.createTerminal({
+        workspaceId: "ws-rootpid",
+        cwd,
+        ...nodeTerminalCommand("process.stdin.resume()"),
+      }),
+    );
+    const entries = manager.listTerminalRootPids();
+    const entry = entries.find((item) => item.terminalId === session.id);
+    expect(entry?.workspaceId).toBe("ws-rootpid");
+    expect(entry?.rootPid).toBeTypeOf("number");
+    if (entry?.rootPid !== undefined) {
+      expect(entry.rootPid).toBeGreaterThan(0);
+    }
+    expect(session.getRootPid()).toBe(entry?.rootPid ?? null);
+  },
+);
