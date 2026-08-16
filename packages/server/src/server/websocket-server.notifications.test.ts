@@ -37,7 +37,9 @@ vi.mock("ws", () => ({
 
 vi.mock("./session.js", () => ({
   Session: function Session() {
-    return {};
+    return {
+      revokePortForwardsForTransportLoss() {},
+    };
   },
 }));
 

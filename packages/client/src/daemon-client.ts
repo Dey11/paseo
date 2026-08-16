@@ -103,6 +103,11 @@ import type {
   WorkspaceCreateRequest,
   WorkspaceRecoveryState,
   PluginListItem,
+  WorkspacePortWatchResponse,
+  WorkspacePortUnwatchResponse,
+  WorkspacePortForwardCreateResponse,
+  WorkspacePortForwardDeleteResponse,
+  WorkspacePortObservation,
 } from "@getpaseo/protocol/messages";
 import type {
   AgentPermissionRequest,
@@ -124,9 +129,12 @@ import {
   decodeFileTransferFrame,
   encodeFileTransferFrame,
   decodeTerminalStreamFrame,
+  decodeTunnelFrame,
+  encodeTunnelFrame,
   FileTransferOpcode,
   TerminalStreamOpcode,
   type FileTransferFrame,
+  type TunnelFrame,
 } from "@getpaseo/protocol/binary-frames/index";
 import {
   createRelayE2eeTransportFactory,
@@ -494,6 +502,10 @@ type AgentPermissionResolvedPayload = AgentPermissionResolvedMessage["payload"];
 type ListTerminalsPayload = ListTerminalsResponse["payload"];
 type CreateTerminalPayload = CreateTerminalResponse["payload"];
 export type RenameTerminalResult = z.infer<typeof RenameTerminalResponseSchema>["payload"];
+type WorkspacePortWatchPayload = WorkspacePortWatchResponse["payload"];
+type WorkspacePortUnwatchPayload = WorkspacePortUnwatchResponse["payload"];
+type WorkspacePortForwardCreatePayload = WorkspacePortForwardCreateResponse["payload"];
+type WorkspacePortForwardDeletePayload = WorkspacePortForwardDeleteResponse["payload"];
 type SubscribeTerminalPayload = SubscribeTerminalResponse["payload"];
 type CloseItemsPayload = CloseItemsResponse["payload"];
 type KillTerminalPayload = KillTerminalResponse["payload"];
@@ -1066,6 +1078,10 @@ export class DaemonClient {
     { cwd: string; path: string; onUpdate: (version: FileVersion) => void }
   >();
   private readonly terminalStreams = new TerminalStreamRouter();
+  private readonly tunnelFrameListeners = new Set<(frame: TunnelFrame) => void>();
+  // Workspaces with an active workspace.port.watch.request. Re-sent after every
+  // reconnect because daemon subscriptions do not survive the session.
+  private readonly portWatchSubscriptions = new Set<string>();
   private pendingBinaryFileReads = new Map<string, PendingBinaryFileRead>();
   private activeBinaryFileTransfers = new Map<string, BinaryFileTransferState>();
   private completedBinaryFileReads = new Map<string, FileReadResult>();
@@ -1345,6 +1361,8 @@ export class DaemonClient {
     this.rejectPendingSendQueue(new Error("Daemon client closed"));
     this.rejectPingProbe(new Error("Daemon client closed"));
     this.terminalStreams.clearSlots();
+    this.tunnelFrameListeners.clear();
+    this.portWatchSubscriptions.clear();
     this.fileSubscriptions.clear();
     this.lastServerInfoMessage = null;
     if (this.runtimeMetricsInterval) {
@@ -2258,6 +2276,94 @@ export class DaemonClient {
     });
   }
 
+  // Port forwarding (fork plan: docs/fork-docs/desktop-port-forwarding.md).
+  // The callers gate these on server_info.features.workspacePortForwarding /
+  // workspacePortDiscovery before sending them; the daemon rejects unknown
+  // requests on older hosts with an rpc_error.
+
+  async watchWorkspacePorts(
+    workspaceId: string,
+    requestId?: string,
+  ): Promise<WorkspacePortWatchPayload> {
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "workspace.port.watch.request", workspaceId },
+      responseType: "workspace.port.watch.response",
+    });
+    if (payload.success) {
+      this.portWatchSubscriptions.add(workspaceId);
+    }
+    return payload;
+  }
+
+  async unwatchWorkspacePorts(
+    workspaceId: string,
+    requestId?: string,
+  ): Promise<WorkspacePortUnwatchPayload> {
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "workspace.port.unwatch.request", workspaceId },
+      responseType: "workspace.port.unwatch.response",
+    });
+    if (payload.success) {
+      this.portWatchSubscriptions.delete(workspaceId);
+    }
+    return payload;
+  }
+
+  async createPortForward(
+    input: {
+      workspaceId: string;
+      port: number;
+      protocol?: WorkspacePortObservation["protocol"];
+      source?: WorkspacePortObservation["source"];
+    },
+    requestId?: string,
+  ): Promise<WorkspacePortForwardCreatePayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "workspace.port_forward.create.request",
+        workspaceId: input.workspaceId,
+        port: input.port,
+        ...(input.protocol !== undefined ? { protocol: input.protocol } : {}),
+        ...(input.source !== undefined ? { source: input.source } : {}),
+      },
+      responseType: "workspace.port_forward.create.response",
+    });
+  }
+
+  async deletePortForward(
+    workspaceId: string,
+    forwardId: string,
+    requestId?: string,
+  ): Promise<WorkspacePortForwardDeletePayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "workspace.port_forward.delete.request",
+        workspaceId,
+        forwardId,
+      },
+      responseType: "workspace.port_forward.delete.response",
+    });
+  }
+
+  // Raw tunnel frames travel over this connection as binary frames, separate
+  // from the JSON session messages. The caller encodes and decodes with the
+  // protocol tunnel codec (workspace.port_forward.* carries forward/stream
+  // identifiers, the binary frames carry the stream bytes).
+  subscribeTunnelFrames(handler: (frame: TunnelFrame) => void): () => void {
+    this.tunnelFrameListeners.add(handler);
+    return () => {
+      this.tunnelFrameListeners.delete(handler);
+    };
+  }
+
+  sendTunnelFrame(input: Parameters<typeof encodeTunnelFrame>[0]): void {
+    this.sendBinaryFrame(encodeTunnelFrame(input));
+  }
+
   async archiveWorkspace(
     workspaceId: string,
     requestId?: string,
@@ -2371,6 +2477,19 @@ export class DaemonClient {
       })
         .then((payload) => subscription.onUpdate(payload.initial))
         .catch(() => undefined);
+    }
+  }
+
+  private resubscribePortWatchSubscriptions(): void {
+    if (this.portWatchSubscriptions.size === 0) {
+      return;
+    }
+    for (const workspaceId of this.portWatchSubscriptions) {
+      this.sendSessionMessage({
+        type: "workspace.port.watch.request",
+        workspaceId,
+        requestId: this.createRequestId(),
+      });
     }
   }
 
@@ -5542,6 +5661,19 @@ export class DaemonClient {
       return true;
     }
 
+    const tunnelFrame = decodeTunnelFrame(rawBytes);
+    if (tunnelFrame) {
+      this.traceInstant("paseo.ws.message.inbound", {
+        envelopeType: "binary",
+        messageType: "tunnel",
+        opcode: String(tunnelFrame.opcode),
+      });
+      this.consecutiveLivenessFailures = 0;
+      this.handleTunnelFrame(tunnelFrame);
+      this.runtimeMetrics?.recordBinaryFrame("tunnel", rawBytes.byteLength, 0);
+      return true;
+    }
+
     const frame = decodeTerminalStreamFrame(rawBytes);
     if (!frame) {
       return false;
@@ -5568,6 +5700,19 @@ export class DaemonClient {
       perfNow() - binaryStartMs,
     );
     return true;
+  }
+
+  private handleTunnelFrame(frame: TunnelFrame): void {
+    if (this.tunnelFrameListeners.size === 0) {
+      return;
+    }
+    for (const handler of Array.from(this.tunnelFrameListeners)) {
+      try {
+        handler(frame);
+      } catch {
+        // no-op
+      }
+    }
   }
 
   private handleFileTransferFrame(frame: FileTransferFrame): void {
@@ -5788,6 +5933,7 @@ export class DaemonClient {
           this.resubscribeCheckoutDiffSubscriptions();
           this.resubscribeTerminalDirectorySubscriptions();
           this.resubscribeFileSubscriptions();
+          this.resubscribePortWatchSubscriptions();
           this.flushPendingSendQueue();
           this.resolveConnect();
         }

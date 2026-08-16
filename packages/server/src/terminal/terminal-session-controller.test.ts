@@ -61,6 +61,7 @@ describe("terminal-session-controller restore", () => {
       name: "Terminal",
       cwd: "/tmp",
       workspaceId: "ws-test",
+      getRootPid: () => null,
       send: vi.fn(),
       subscribe: (listener) => {
         terminalListener = listener;
@@ -196,6 +197,7 @@ describe("terminal-session-controller legacy terminal creation", () => {
           name: options.name ?? "Terminal 1",
           cwd: options.cwd,
           workspaceId: options.workspaceId,
+          getRootPid: () => null,
         }),
     );
     const terminalManager: TerminalManager = {
@@ -271,6 +273,7 @@ describe("terminal-session-controller legacy terminal creation", () => {
           name: options.name ?? "Terminal 1",
           cwd: options.cwd,
           workspaceId: options.workspaceId,
+          getRootPid: () => null,
         }),
     );
     const terminalManager: TerminalManager = {
@@ -336,6 +339,7 @@ describe("terminal-session-controller wrap-flag gating", () => {
       name: "Terminal",
       cwd: "/tmp",
       workspaceId: "ws-test",
+      getRootPid: () => null,
       send: vi.fn(),
       subscribe: (listener) => {
         queueMicrotask(() => listener({ type: "snapshotReady", revision: 1 }));
@@ -648,6 +652,7 @@ describe("terminal-session-controller backpressure snapshot fallback", () => {
       name: "Terminal",
       cwd: "/tmp",
       workspaceId: "ws-test",
+      getRootPid: () => null,
       send: vi.fn(),
       subscribe: (listener) => {
         terminalListener = listener;

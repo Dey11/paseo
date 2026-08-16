@@ -20,6 +20,7 @@ import type {
   TerminalActivityTransitionEvent,
   TerminalListItem,
   TerminalManager,
+  TerminalRootPid,
   TerminalWorkspaceContributionChangedEvent,
   TerminalWorkspaceContributionChangedListener,
   TerminalsChangedEvent,
@@ -136,6 +137,7 @@ function cloneTerminalInfo(info: RequiredWorkerTerminalInfo): RequiredWorkerTerm
     workspaceId: info.workspaceId,
     ...(info.title ? { title: info.title } : {}),
     activity: info.activity,
+    rootPid: info.rootPid ?? null,
   };
 }
 
@@ -255,6 +257,9 @@ export function createWorkerTerminalManager(
       },
       get workspaceId() {
         return record.info.workspaceId;
+      },
+      getRootPid(): number | null {
+        return typeof record.info.rootPid === "number" ? record.info.rootPid : null;
       },
       send(message: ClientMessage): void {
         if (message.type === "resize") {
@@ -811,6 +816,21 @@ export function createWorkerTerminalManager(
 
     listDirectories(): string[] {
       return Array.from(terminalIdsByCwd.keys());
+    },
+
+    listTerminalRootPids(): TerminalRootPid[] {
+      const result: TerminalRootPid[] = [];
+      for (const record of recordsById.values()) {
+        const rootPid = record.info.rootPid;
+        if (typeof rootPid === "number") {
+          result.push({
+            terminalId: record.info.id,
+            workspaceId: record.info.workspaceId,
+            rootPid,
+          });
+        }
+      }
+      return result;
     },
 
     killAll(): void {

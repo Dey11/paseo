@@ -2684,6 +2684,42 @@ export const WorkspaceScriptStopRequestSchema = z.object({
   requestId: z.string(),
 });
 
+// Port forwarding (fork plan: docs/fork-docs/desktop-port-forwarding.md).
+// Request namespaces follow docs/rpc-namespacing.md: dotted names with the
+// direction as the final segment and parameters at the top level.
+
+export const WorkspacePortWatchRequestSchema = z.object({
+  type: z.literal("workspace.port.watch.request"),
+  workspaceId: z.string(),
+  requestId: z.string(),
+});
+
+export const WorkspacePortUnwatchRequestSchema = z.object({
+  type: z.literal("workspace.port.unwatch.request"),
+  workspaceId: z.string(),
+  requestId: z.string(),
+});
+
+export const WorkspacePortForwardCreateRequestSchema = z.object({
+  type: z.literal("workspace.port_forward.create.request"),
+  workspaceId: z.string(),
+  port: z.number().int().min(1).max(65535),
+  // Display hint only; it never changes tunnel behavior. Defaults to manual
+  // forwarding of a plain TCP service when absent.
+  protocol: z.enum(["http", "https", "tcp"]).optional(),
+  // How the port became a forward target. Absent means manual: the daemon does
+  // not require the port to be observable for the workspace.
+  source: z.enum(["observed", "configured", "manual"]).optional(),
+  requestId: z.string(),
+});
+
+export const WorkspacePortForwardDeleteRequestSchema = z.object({
+  type: z.literal("workspace.port_forward.delete.request"),
+  workspaceId: z.string(),
+  forwardId: z.string().min(1),
+  requestId: z.string(),
+});
+
 export const SubscribeTerminalRequestSchema = z.object({
   type: z.literal("subscribe_terminal_request"),
   terminalId: z.string(),
@@ -2971,6 +3007,10 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   WorkspaceScriptListRequestSchema,
   WorkspaceScriptStartRequestSchema,
   WorkspaceScriptStopRequestSchema,
+  WorkspacePortWatchRequestSchema,
+  WorkspacePortUnwatchRequestSchema,
+  WorkspacePortForwardCreateRequestSchema,
+  WorkspacePortForwardDeleteRequestSchema,
   SubscribeTerminalRequestSchema,
   UnsubscribeTerminalRequestSchema,
   TerminalInputSchema,
@@ -3281,6 +3321,12 @@ export const ServerInfoStatusPayloadSchema = z
         agentProfiles: z.boolean().optional(),
         // COMPAT(agentConfigApply): added in v0.3.2, remove gate after 2027-02-11.
         agentConfigApply: z.boolean().optional(),
+        // COMPAT(workspacePortForwarding): added in v0.4.0, remove gate after 2027-02-16 once daemon floor >= v0.4.0.
+        // Gates the workspace.port_forward.* RPCs and the tunnel binary frame family.
+        workspacePortForwarding: z.boolean().optional(),
+        // COMPAT(workspacePortDiscovery): added in v0.4.0, remove gate after 2027-02-16 once daemon floor >= v0.4.0.
+        // Gates the workspace.port.watch/unwatch RPCs and workspace.port.update snapshots.
+        workspacePortDiscovery: z.boolean().optional(),
       })
       .optional(),
   })
@@ -3973,6 +4019,80 @@ export const WorkspaceScriptStartResponseMessageSchema = z.object({
 export const WorkspaceScriptStopResponseMessageSchema = z.object({
   type: z.literal("workspace.script.stop.response"),
   payload: WorkspaceScriptOperationPayloadSchema,
+});
+
+export const WorkspacePortSourceSchema = z.enum(["observed", "configured", "manual"]);
+
+// Display hint only. "tcp" covers anything that is not HTTP or HTTPS; the
+// tunnel itself is a raw TCP transport regardless of the hint.
+export const WorkspacePortProtocolHintSchema = z.enum(["http", "https", "tcp"]);
+
+export const WorkspacePortObservationSchema = z.object({
+  port: z.number().int().min(1).max(65535),
+  // Remote bind address as reported by the daemon (for example "127.0.0.1",
+  // "0.0.0.0", "::1", or "::"). The daemon owns the eligibility policy.
+  bindAddress: z.string(),
+  source: WorkspacePortSourceSchema,
+  available: z.boolean(),
+  unavailableReason: z.string().nullable(),
+  protocol: WorkspacePortProtocolHintSchema.optional(),
+  terminalId: z.string().nullable().optional(),
+  terminalTitle: z.string().nullable().optional(),
+  processName: z.string().nullable().optional(),
+  serviceName: z.string().nullable().optional(),
+  observedAt: z.string().nullable().optional(),
+});
+
+const WorkspacePortSubscriptionResponsePayloadSchema = z.object({
+  workspaceId: z.string(),
+  success: z.boolean(),
+  error: z.string().nullable(),
+  requestId: z.string(),
+});
+
+export const WorkspacePortWatchResponseSchema = z.object({
+  type: z.literal("workspace.port.watch.response"),
+  payload: WorkspacePortSubscriptionResponsePayloadSchema,
+});
+
+export const WorkspacePortUnwatchResponseSchema = z.object({
+  type: z.literal("workspace.port.unwatch.response"),
+  payload: WorkspacePortSubscriptionResponsePayloadSchema,
+});
+
+// Full snapshot replacement for subscribed clients. Only clients that sent
+// workspace.port.watch.request receive these updates, so old clients never see
+// the message; the schema stays pure and additive regardless.
+export const WorkspacePortUpdateMessageSchema = z.object({
+  type: z.literal("workspace.port.update"),
+  payload: z.object({
+    workspaceId: z.string(),
+    ports: z.array(WorkspacePortObservationSchema),
+  }),
+});
+
+export const WorkspacePortForwardCreateResponseSchema = z.object({
+  type: z.literal("workspace.port_forward.create.response"),
+  payload: z.object({
+    workspaceId: z.string(),
+    port: z.number().int().min(1).max(65535),
+    // Opaque forward identifier; null when creation failed. Referenced by
+    // workspace.port_forward.delete.request and the tunnel binary frames.
+    forwardId: z.string().min(1).nullable(),
+    error: z.string().nullable(),
+    requestId: z.string(),
+  }),
+});
+
+export const WorkspacePortForwardDeleteResponseSchema = z.object({
+  type: z.literal("workspace.port_forward.delete.response"),
+  payload: z.object({
+    workspaceId: z.string(),
+    forwardId: z.string().min(1),
+    success: z.boolean(),
+    error: z.string().nullable(),
+    requestId: z.string(),
+  }),
 });
 
 // COMPAT(desktopEditorBridge): added in v0.1.88, remove after 2026-12-03 once old clients no longer parse daemon editor RPC responses.
@@ -5949,6 +6069,11 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   WorkspaceScriptListResponseMessageSchema,
   WorkspaceScriptStartResponseMessageSchema,
   WorkspaceScriptStopResponseMessageSchema,
+  WorkspacePortWatchResponseSchema,
+  WorkspacePortUnwatchResponseSchema,
+  WorkspacePortUpdateMessageSchema,
+  WorkspacePortForwardCreateResponseSchema,
+  WorkspacePortForwardDeleteResponseSchema,
   LegacyListAvailableEditorsResponseMessageSchema,
   LegacyOpenInEditorResponseMessageSchema,
   ArchiveWorkspaceResponseMessageSchema,
@@ -6154,6 +6279,24 @@ export type WorkspaceScriptStartResponseMessage = z.infer<
 >;
 export type WorkspaceScriptStopResponseMessage = z.infer<
   typeof WorkspaceScriptStopResponseMessageSchema
+>;
+export type WorkspacePortWatchRequest = z.infer<typeof WorkspacePortWatchRequestSchema>;
+export type WorkspacePortUnwatchRequest = z.infer<typeof WorkspacePortUnwatchRequestSchema>;
+export type WorkspacePortForwardCreateRequest = z.infer<
+  typeof WorkspacePortForwardCreateRequestSchema
+>;
+export type WorkspacePortForwardDeleteRequest = z.infer<
+  typeof WorkspacePortForwardDeleteRequestSchema
+>;
+export type WorkspacePortObservation = z.infer<typeof WorkspacePortObservationSchema>;
+export type WorkspacePortUpdateMessage = z.infer<typeof WorkspacePortUpdateMessageSchema>;
+export type WorkspacePortWatchResponse = z.infer<typeof WorkspacePortWatchResponseSchema>;
+export type WorkspacePortUnwatchResponse = z.infer<typeof WorkspacePortUnwatchResponseSchema>;
+export type WorkspacePortForwardCreateResponse = z.infer<
+  typeof WorkspacePortForwardCreateResponseSchema
+>;
+export type WorkspacePortForwardDeleteResponse = z.infer<
+  typeof WorkspacePortForwardDeleteResponseSchema
 >;
 export type LegacyListAvailableEditorsResponseMessage = z.infer<
   typeof LegacyListAvailableEditorsResponseMessageSchema

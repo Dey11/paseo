@@ -1667,6 +1667,13 @@ export class VoiceAssistantWebSocketServer {
         agentProfiles: true,
         // COMPAT(agentConfigApply): added in v0.3.2, remove gate after 2027-02-11.
         agentConfigApply: true,
+        // COMPAT(workspacePortForwarding): added in v0.4.0, remove gate after 2027-02-16 once daemon floor >= v0.4.0.
+        // Gates the workspace.port_forward.* RPCs and the tunnel binary frame family.
+        workspacePortForwarding: true,
+        // COMPAT(workspacePortDiscovery): added in v0.4.0, remove gate after 2027-02-16 once daemon floor >= v0.4.0.
+        // Gates the workspace.port.watch/unwatch RPCs and workspace.port.update snapshots.
+        // Initial discovery support is Linux; other hosts still allow manual forwarding.
+        ...(process.platform === "linux" ? { workspacePortDiscovery: true } : {}),
       },
     };
   }
@@ -1790,6 +1797,9 @@ export class VoiceAssistantWebSocketServer {
     this.socketIdentities.delete(ws);
 
     if (connection.sockets.size === 0) {
+      // Revoke port forwards promptly: the desktop keeps only its local
+      // listeners and recreates daemon-side forwards after reconnecting.
+      connection.session.revokePortForwardsForTransportLoss();
       this.unregisterBrowserToolsClient(connection.clientId);
       this.incrementRuntimeCounter("sessionDisconnectedWaitingReconnect");
       if (connection.externalDisconnectCleanupTimeout) {

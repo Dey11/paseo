@@ -162,6 +162,7 @@ import {
 import { ScheduleSession } from "./session/schedule/schedule-session.js";
 import { ProviderCatalogSession } from "./session/provider/provider-catalog-session.js";
 import { WorkspaceFilesSession } from "./session/files/workspace-files-session.js";
+import { PortForwardingSession } from "./port-forwarding/port-forwarding-session.js";
 import { AgentConfigSession } from "./session/agent-config/agent-config-session.js";
 import { ProjectConfigSession } from "./session/project-config/project-config-session.js";
 import { DaemonSession, type DaemonRuntimeConfig } from "./session/daemon/daemon-session.js";
@@ -698,6 +699,7 @@ export class Session {
   private readonly scheduleSession: ScheduleSession;
   private readonly providerCatalogSession: ProviderCatalogSession;
   private readonly workspaceFilesSession: WorkspaceFilesSession;
+  private readonly portForwarding: PortForwardingSession;
   private readonly agentConfigSession: AgentConfigSession;
   private readonly projectConfigSession: ProjectConfigSession;
   private readonly daemonSession: DaemonSession;
@@ -1014,6 +1016,44 @@ export class Session {
       emit: (message) => this.emit(message),
       spawnWorkspaceScript,
       globalServicePorts: loadPersistedConfig(this.paseoHome).worktrees?.servicePorts,
+    });
+    // Constructed after terminalManager/workspaceScripts so the observer's
+    // terminal lifecycle subscription and service-port source see live state.
+    this.portForwarding = new PortForwardingSession({
+      host: {
+        emit: (msg) => this.emit(msg),
+        emitBinary: (frame) => this.emitBinary(frame),
+      },
+      getWorkspace: async (workspaceId) => {
+        const workspace = await this.workspaceRegistry.get(workspaceId);
+        return workspace
+          ? { workspaceId: workspace.workspaceId, archivedAt: workspace.archivedAt }
+          : null;
+      },
+      listTerminalRootPids: () => this.terminalManager?.listTerminalRootPids() ?? [],
+      listServicePorts: async (workspaceId) => {
+        try {
+          const scripts = await this.workspaceScripts.list(workspaceId);
+          const ports: Array<{ port: number; scriptName: string }> = [];
+          for (const script of scripts) {
+            if (typeof script.port === "number") {
+              ports.push({ port: script.port, scriptName: script.scriptName });
+            }
+          }
+          return ports;
+        } catch (error) {
+          this.sessionLogger.warn(
+            { err: error, workspaceId },
+            "Failed to list workspace service ports",
+          );
+          return [];
+        }
+      },
+      resolveTerminalTitle: (terminalId) =>
+        this.terminalManager?.getTerminal(terminalId)?.getTitle(),
+      subscribeTerminalsChanged: (listener) =>
+        this.terminalManager?.subscribeTerminalsChanged(listener) ?? (() => {}),
+      logger: this.sessionLogger,
     });
     this.subscribeToOptionalManagers();
     this.workspaceDirectory = new WorkspaceDirectory({
@@ -1479,6 +1519,7 @@ export class Session {
         mutation.workspace?.archivedAt
       ) {
         this.workspaceGitObserver.removeForWorkspaceId(mutation.workspaceId);
+        this.portForwarding.deleteForwardsForWorkspace(mutation.workspaceId);
       } else {
         await this.syncWorkspaceMutationObserver(mutation);
       }
@@ -1885,6 +1926,7 @@ export class Session {
       this.dispatchPluginDirectoryMessage(msg) ??
       this.dispatchPluginMessage(msg) ??
       this.dispatchTerminalMessage(msg) ??
+      this.dispatchPortForwardingMessage(msg) ??
       this.dispatchScheduleMessage(msg) ??
       this.dispatchMiscMessage(msg);
     if (promise) await promise;
@@ -2406,6 +2448,18 @@ export class Session {
     }
   }
 
+  private dispatchPortForwardingMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "workspace.port.watch.request":
+      case "workspace.port.unwatch.request":
+      case "workspace.port_forward.create.request":
+      case "workspace.port_forward.delete.request":
+        return this.portForwarding.handleMessage(msg);
+      default:
+        return undefined;
+    }
+  }
+
   private dispatchScheduleMessage(msg: SessionInboundMessage): Promise<void> | undefined {
     switch (msg.type) {
       case "schedule/create":
@@ -2465,7 +2519,20 @@ export class Session {
       await this.workspaceFilesSession.handleFileTransferFrame(binaryFrame.frame);
       return;
     }
+    if (binaryFrame.kind === "tunnel") {
+      this.portForwarding.handleTunnelFrame(binaryFrame.frame);
+      return;
+    }
     this.terminalController.handleBinaryFrame(binaryFrame.frame);
+  }
+
+  /**
+   * The trusted transport lost its last socket: revoke daemon-side port
+   * forwards so a disconnected authorization does not survive and reconnect
+   * never hits "already_forwarded".
+   */
+  revokePortForwardsForTransportLoss(): void {
+    this.portForwarding.revokeForTransportLoss();
   }
 
   private async handleRestartServerRequest(requestId: string, reason?: string): Promise<void> {
@@ -7174,6 +7241,7 @@ export class Session {
 
     this.workspaceGitObserver.dispose();
     this.workspaceFilesSession.dispose();
+    this.portForwarding.dispose();
   }
 }
 

@@ -49,6 +49,7 @@ const sessionMock = vi.hoisted(() => {
     cleanup = vi.fn(async () => {});
     handleMessage = vi.fn(async () => {});
     handleBinaryFrame = vi.fn((_frame: unknown) => {});
+    revokePortForwardsForTransportLoss = vi.fn();
     supports = vi.fn((capability: string) => this.args.clientCapabilities?.[capability] === true);
     updateClientCapabilities = vi.fn((capabilities: Record<string, unknown> | null) => {
       this.args.clientCapabilities = capabilities;

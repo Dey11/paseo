@@ -391,6 +391,7 @@ describe("runAsyncWorktreeBootstrap", () => {
           getActivity: () => null,
           setActivity: () => {},
           getExitInfo: () => null,
+          getRootPid: () => null,
           killAndWait: async () => {},
         };
         sessionsById.set(terminalId, session);

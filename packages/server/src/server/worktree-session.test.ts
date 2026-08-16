@@ -238,6 +238,7 @@ function createTerminalManagerStub(options?: {
             getActivity: () => null,
             setActivity: () => {},
             getExitInfo: () => null,
+            getRootPid: () => null,
           } satisfies TerminalSession;
           terminals.push({
             id: terminal.id,

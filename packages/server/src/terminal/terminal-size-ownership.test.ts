@@ -8,6 +8,7 @@ function createTerminal(): { terminal: TerminalSession; appliedSizes: string[] }
   let size = { rows: 24, cols: 80 };
   const terminal = {
     getSize: () => size,
+    getRootPid: () => null,
     send: (message: { type: "resize"; rows: number; cols: number }) => {
       size = { rows: message.rows, cols: message.cols };
       appliedSizes.push(`${message.cols}x${message.rows}`);

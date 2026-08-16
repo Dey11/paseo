@@ -78,6 +78,14 @@ export interface TerminalSession {
   name: string;
   cwd: string;
   workspaceId: string;
+  /**
+   * PTY root process id, exposed only through the internal terminal/worker
+   * manager contract (port observation walks its /proc descendants). Never a
+   * public product identity: clients must not rely on it. Null when the
+   * platform/backend cannot provide one (Windows conpty, worker mirror before
+   * first sync).
+   */
+  getRootPid(): number | null;
   send(msg: ClientMessage): void;
   subscribe(listener: (msg: ServerMessage) => void, options?: TerminalSubscribeOptions): () => void;
   onExit(listener: (info: TerminalExitInfo) => void): () => void;
@@ -1533,11 +1541,16 @@ export async function createTerminal(options: CreateTerminalOptions): Promise<Te
   // Small delay to let shell initialize
   await new Promise((resolve) => setTimeout(resolve, 50));
 
+  // Windows conpty exposes its agent process pid, not a real OS process id in
+  // the sense /proc walking needs; port discovery is Linux-only anyway.
+  const rootPid = process.platform === "win32" ? null : ptyProcess.pid;
+
   return {
     id,
     name,
     cwd,
     workspaceId,
+    getRootPid: () => rootPid,
     send,
     subscribe,
     onExit,

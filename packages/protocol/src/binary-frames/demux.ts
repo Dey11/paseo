@@ -8,10 +8,12 @@ import {
   TerminalStreamOpcode,
   type TerminalStreamFrame,
 } from "./terminal.js";
+import { decodeTunnelFrame, TunnelOpcode, type TunnelFrame } from "./tunnel.js";
 
 export type BinaryFrame =
   | { kind: "terminal"; frame: TerminalStreamFrame }
-  | { kind: "file_transfer"; frame: FileTransferFrame };
+  | { kind: "file_transfer"; frame: FileTransferFrame }
+  | { kind: "tunnel"; frame: TunnelFrame };
 
 export function decodeBinaryFrame(bytes: Uint8Array): BinaryFrame | null {
   switch (bytes[0]) {
@@ -28,6 +30,15 @@ export function decodeBinaryFrame(bytes: Uint8Array): BinaryFrame | null {
     case FileTransferOpcode.FileEnd: {
       const frame = decodeFileTransferFrame(bytes);
       return frame ? { kind: "file_transfer", frame } : null;
+    }
+    case TunnelOpcode.Open:
+    case TunnelOpcode.OpenResult:
+    case TunnelOpcode.Data:
+    case TunnelOpcode.WindowUpdate:
+    case TunnelOpcode.HalfClose:
+    case TunnelOpcode.Close: {
+      const frame = decodeTunnelFrame(bytes);
+      return frame ? { kind: "tunnel", frame } : null;
     }
     default:
       return null;

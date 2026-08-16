@@ -4,8 +4,10 @@ import {
   decodeBinaryFrame,
   encodeFileTransferFrame,
   encodeTerminalStreamFrame,
+  encodeTunnelFrame,
   FileTransferOpcode,
   TerminalStreamOpcode,
+  TunnelOpcode,
 } from "./index.js";
 
 describe("binary frame demux", () => {
@@ -42,6 +44,27 @@ describe("binary frame demux", () => {
       frame: {
         opcode: FileTransferOpcode.FileChunk,
         requestId: "req-upload",
+        payload: new TextEncoder().encode("hello"),
+      },
+    });
+  });
+
+  it("routes tunnel frames by opcode", () => {
+    expect(
+      decodeBinaryFrame(
+        encodeTunnelFrame({
+          opcode: TunnelOpcode.Data,
+          forwardId: "fwd-1",
+          streamId: "stream-7",
+          payload: new TextEncoder().encode("hello"),
+        }),
+      ),
+    ).toEqual({
+      kind: "tunnel",
+      frame: {
+        opcode: TunnelOpcode.Data,
+        forwardId: "fwd-1",
+        streamId: "stream-7",
         payload: new TextEncoder().encode("hello"),
       },
     });

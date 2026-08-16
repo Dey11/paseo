@@ -21,6 +21,16 @@ export interface TerminalListItem {
   activity: TerminalActivity | null;
 }
 
+/**
+ * PTY root process id for internal use only (port observation walks its /proc
+ * descendants). Not a public product identity.
+ */
+export interface TerminalRootPid {
+  terminalId: string;
+  workspaceId: string;
+  rootPid: number;
+}
+
 export interface TerminalsChangedEvent {
   cwd: string;
   terminals: TerminalListItem[];
@@ -85,6 +95,7 @@ export interface TerminalManager {
     options?: { start?: number; end?: number; stripAnsi?: boolean },
   ): Promise<CaptureTerminalLinesResult>;
   listDirectories(): string[];
+  listTerminalRootPids(): TerminalRootPid[];
   killAll(): void;
   subscribeTerminalsChanged(listener: TerminalsChangedListener): () => void;
   subscribeTerminalActivity(listener: TerminalActivityListener): () => void;
@@ -461,6 +472,21 @@ export function createTerminalManager(
 
     listDirectories(): string[] {
       return Array.from(terminalsByCwd.keys());
+    },
+
+    listTerminalRootPids(): TerminalRootPid[] {
+      const result: TerminalRootPid[] = [];
+      for (const session of terminalsById.values()) {
+        const rootPid = session.getRootPid();
+        if (rootPid !== null) {
+          result.push({
+            terminalId: session.id,
+            workspaceId: session.workspaceId,
+            rootPid,
+          });
+        }
+      }
+      return result;
     },
 
     killAll(): void {

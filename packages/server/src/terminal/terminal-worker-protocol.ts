@@ -16,6 +16,9 @@ export interface WorkerTerminalInfo {
   workspaceId?: string;
   title?: string;
   activity: TerminalActivity | null;
+  // PTY root process id for internal port observation; internal contract only,
+  // never a public product identity. Null when unavailable (Windows conpty).
+  rootPid?: number | null;
 }
 
 export interface WorkerCreateTerminalOptions {

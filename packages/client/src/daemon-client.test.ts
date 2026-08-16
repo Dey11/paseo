@@ -14,6 +14,12 @@ import {
   FileTransferOpcode,
 } from "@getpaseo/protocol/binary-frames/index";
 import {
+  decodeTunnelFrame,
+  encodeTunnelFrame,
+  TunnelOpcode,
+  type TunnelFrame,
+} from "@getpaseo/protocol/binary-frames/index";
+import {
   asUint8Array,
   decodeTerminalResizePayload,
   decodeTerminalStreamFrame,
@@ -5920,4 +5926,300 @@ test("waitForFinish with timeout=0 omits timeoutMs and has no client deadline", 
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("watches workspace ports and resubscribes after reconnect", async () => {
+  useHeartbeatClock();
+  try {
+    const logger = createMockLogger();
+    const first = createMockTransport();
+    const second = createMockTransport();
+    const transports = [first, second];
+    let transportIndex = 0;
+
+    const client = new DaemonClient({
+      url: "ws://test",
+      clientId: "clsk_port_watch",
+      logger,
+      reconnect: { enabled: true, baseDelayMs: 5, maxDelayMs: 5 },
+      transportFactory: () => {
+        const next = transports[Math.min(transportIndex, transports.length - 1)];
+        transportIndex += 1;
+        return next.transport;
+      },
+    });
+    clients.push(client);
+
+    const connectPromise = client.connect();
+    first.triggerOpen();
+    await connectPromise;
+
+    const watchPromise = client.watchWorkspacePorts("ws-1", "watch-1");
+    const request = parseSentFrame(first.sent.at(-1));
+    expect(request).toEqual({
+      type: "workspace.port.watch.request",
+      workspaceId: "ws-1",
+      requestId: "watch-1",
+    });
+
+    first.triggerMessage(
+      wrapSessionMessage({
+        type: "workspace.port.watch.response",
+        payload: { workspaceId: "ws-1", success: true, error: null, requestId: "watch-1" },
+      }),
+    );
+    await expect(watchPromise).resolves.toEqual({
+      workspaceId: "ws-1",
+      success: true,
+      error: null,
+      requestId: "watch-1",
+    });
+
+    first.triggerClose({ code: 1006, reason: "network lost" });
+    await vi.advanceTimersByTimeAsync(10);
+    second.triggerOpen();
+
+    const resubscribed = second.sent.map((frame) => parseSentFrame(frame));
+    expect(resubscribed).toEqual([
+      {
+        type: "workspace.port.watch.request",
+        workspaceId: "ws-1",
+        requestId: expect.any(String),
+      },
+    ]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("unwatches workspace ports and stops resubscribing after reconnect", async () => {
+  useHeartbeatClock();
+  try {
+    const logger = createMockLogger();
+    const first = createMockTransport();
+    const second = createMockTransport();
+    const transports = [first, second];
+    let transportIndex = 0;
+
+    const client = new DaemonClient({
+      url: "ws://test",
+      clientId: "clsk_port_unwatch",
+      logger,
+      reconnect: { enabled: true, baseDelayMs: 5, maxDelayMs: 5 },
+      transportFactory: () => {
+        const next = transports[Math.min(transportIndex, transports.length - 1)];
+        transportIndex += 1;
+        return next.transport;
+      },
+    });
+    clients.push(client);
+
+    const connectPromise = client.connect();
+    first.triggerOpen();
+    await connectPromise;
+
+    const watchPromise = client.watchWorkspacePorts("ws-1", "watch-1");
+    first.triggerMessage(
+      wrapSessionMessage({
+        type: "workspace.port.watch.response",
+        payload: { workspaceId: "ws-1", success: true, error: null, requestId: "watch-1" },
+      }),
+    );
+    await watchPromise;
+
+    const unwatchPromise = client.unwatchWorkspacePorts("ws-1", "unwatch-1");
+    const unwatchRequest = parseSentFrame(first.sent.at(-1));
+    expect(unwatchRequest).toEqual({
+      type: "workspace.port.unwatch.request",
+      workspaceId: "ws-1",
+      requestId: "unwatch-1",
+    });
+    first.triggerMessage(
+      wrapSessionMessage({
+        type: "workspace.port.unwatch.response",
+        payload: { workspaceId: "ws-1", success: true, error: null, requestId: "unwatch-1" },
+      }),
+    );
+    await expect(unwatchPromise).resolves.toEqual({
+      workspaceId: "ws-1",
+      success: true,
+      error: null,
+      requestId: "unwatch-1",
+    });
+
+    first.triggerClose({ code: 1006, reason: "network lost" });
+    await vi.advanceTimersByTimeAsync(10);
+    second.triggerOpen();
+
+    expect(second.sent).toEqual([]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("creates and deletes a port forward through dotted RPCs", async () => {
+  const logger = createMockLogger();
+  const mock = createMockTransport();
+
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "clsk_port_forward",
+    logger,
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+
+  const connectPromise = client.connect();
+  mock.triggerOpen();
+  await connectPromise;
+
+  const createPromise = client.createPortForward(
+    { workspaceId: "ws-1", port: 3000, protocol: "http", source: "observed" },
+    "create-1",
+  );
+  const createRequest = parseSentFrame(mock.sent.at(-1));
+  expect(createRequest).toEqual({
+    type: "workspace.port_forward.create.request",
+    workspaceId: "ws-1",
+    port: 3000,
+    protocol: "http",
+    source: "observed",
+    requestId: "create-1",
+  });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "workspace.port_forward.create.response",
+      payload: {
+        workspaceId: "ws-1",
+        port: 3000,
+        forwardId: "fwd-1",
+        error: null,
+        requestId: "create-1",
+      },
+    }),
+  );
+  await expect(createPromise).resolves.toEqual({
+    workspaceId: "ws-1",
+    port: 3000,
+    forwardId: "fwd-1",
+    error: null,
+    requestId: "create-1",
+  });
+
+  const deletePromise = client.deletePortForward("ws-1", "fwd-1", "delete-1");
+  const deleteRequest = parseSentFrame(mock.sent.at(-1));
+  expect(deleteRequest).toEqual({
+    type: "workspace.port_forward.delete.request",
+    workspaceId: "ws-1",
+    forwardId: "fwd-1",
+    requestId: "delete-1",
+  });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "workspace.port_forward.delete.response",
+      payload: {
+        workspaceId: "ws-1",
+        forwardId: "fwd-1",
+        success: true,
+        error: null,
+        requestId: "delete-1",
+      },
+    }),
+  );
+  await expect(deletePromise).resolves.toEqual({
+    workspaceId: "ws-1",
+    forwardId: "fwd-1",
+    success: true,
+    error: null,
+    requestId: "delete-1",
+  });
+});
+
+test("rejects a port forward outside the TCP port range", async () => {
+  const logger = createMockLogger();
+  const mock = createMockTransport();
+
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "clsk_port_invalid",
+    logger,
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+
+  const connectPromise = client.connect();
+  mock.triggerOpen();
+  await connectPromise;
+
+  await expect(
+    client.createPortForward({ workspaceId: "ws-1", port: 70000 }, "create-bad"),
+  ).rejects.toThrow();
+  expect(mock.sent).toEqual([]);
+});
+
+test("sends and receives tunnel frames over the dedicated binary channel", async () => {
+  const logger = createMockLogger();
+  const mock = createMockTransport();
+
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "clsk_tunnel_frames",
+    logger,
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+
+  const connectPromise = client.connect();
+  mock.triggerOpen();
+  await connectPromise;
+
+  const received: TunnelFrame[] = [];
+  const unsubscribe = client.subscribeTunnelFrames((frame) => received.push(frame));
+
+  client.sendTunnelFrame({
+    opcode: TunnelOpcode.Open,
+    forwardId: "fwd-1",
+    streamId: "st-1",
+  });
+  client.sendTunnelFrame({
+    opcode: TunnelOpcode.Data,
+    forwardId: "fwd-1",
+    streamId: "st-1",
+    payload: new TextEncoder().encode("hello"),
+  });
+
+  const sentOpen = decodeTunnelFrame(assertUint8Array(mock.sent[0]));
+  expect(sentOpen).toEqual({ opcode: TunnelOpcode.Open, forwardId: "fwd-1", streamId: "st-1" });
+  const sentData = decodeTunnelFrame(assertUint8Array(mock.sent[1]));
+  expect(sentData).toEqual({
+    opcode: TunnelOpcode.Data,
+    forwardId: "fwd-1",
+    streamId: "st-1",
+    payload: new TextEncoder().encode("hello"),
+  });
+
+  const inbound = encodeTunnelFrame({
+    opcode: TunnelOpcode.WindowUpdate,
+    forwardId: "fwd-1",
+    streamId: "st-1",
+    credit: 4096,
+  });
+  mock.triggerMessage(inbound);
+
+  expect(received).toEqual([
+    { opcode: TunnelOpcode.WindowUpdate, forwardId: "fwd-1", streamId: "st-1", credit: 4096 },
+  ]);
+
+  unsubscribe();
+  const closeFrame = encodeTunnelFrame({
+    opcode: TunnelOpcode.Close,
+    forwardId: "fwd-1",
+    streamId: "st-1",
+    reason: "forward stopped",
+  });
+  mock.triggerMessage(closeFrame);
+  expect(received).toHaveLength(1);
 });
