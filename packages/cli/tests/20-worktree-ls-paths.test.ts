@@ -20,11 +20,11 @@ try {
   }
 
   {
-    console.log("Test 2: falls back to homedir/.paseo when PASEO_HOME is unset");
+    console.log("Test 2: falls back to homedir/.hanabicode when PASEO_HOME is unset");
     delete process.env.PASEO_HOME;
 
-    assert.strictEqual(resolvePaseoHomePath(), join(homedir(), ".paseo"));
-    assert.strictEqual(resolvePaseoWorktreesDir(), join(homedir(), ".paseo", "worktrees"));
+    assert.strictEqual(resolvePaseoHomePath(), join(homedir(), ".hanabicode"));
+    assert.strictEqual(resolvePaseoWorktreesDir(), join(homedir(), ".hanabicode", "worktrees"));
     console.log("\u2713 fallback home path is derived from os.homedir()\n");
   }
 } finally {

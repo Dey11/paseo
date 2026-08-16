@@ -44,8 +44,8 @@ try {
     "onboard output should include run shortcut",
   );
   assert(
-    onboard.stdout.includes("hanabicode status"),
-    "onboard output should include status shortcut",
+    onboard.stdout.includes("hanabicode daemon status"),
+    "onboard output should include daemon status shortcut",
   );
   assert(
     onboard.stdout.includes(join(paseoHome, "daemon.log")),
