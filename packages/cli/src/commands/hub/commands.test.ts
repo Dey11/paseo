@@ -39,7 +39,7 @@ describe("Hub commands", () => {
       },
     });
     connect?.outputHelp();
-    assert.match(help, /active stored login.*https:\/\/hub\.paseo\.sh/u);
+    assert.match(help, /active stored login.*no hosted Hub default/iu);
   });
 
   it("login stores the durable credential and marks its normalized origin active", async () => {
@@ -64,31 +64,34 @@ describe("Hub commands", () => {
     assert.equal(JSON.stringify(result).includes("durable-secret"), false);
   });
 
-  it("login without an origin uses the hosted default and reports it before authorization", async () => {
+  it("login without an origin requires an explicit or stored self-hosted Hub", async () => {
     const credentials = new MemoryCredentials();
     const events: string[] = [];
 
-    const result = await runHubLogin(
-      undefined,
-      {},
-      {
-        env: {},
-        credentials,
-        flow: {
-          authorize: async (origin) => {
-            events.push(`authorize:${origin}`);
-            return "paseo_cli_prefix_durable-secret";
+    await assert.rejects(
+      runHubLogin(
+        undefined,
+        {},
+        {
+          env: {},
+          credentials,
+          flow: {
+            authorize: async (origin) => {
+              events.push(`authorize:${origin}`);
+              return "paseo_cli_prefix_durable-secret";
+            },
           },
+          reporter: { progress: (message) => events.push(`progress:${message}`) },
         },
-        reporter: { progress: (message) => events.push(`progress:${message}`) },
+      ),
+      {
+        code: "HUB_ORIGIN_REQUIRED",
+        message:
+          "HanabiCode has no hosted Hub default. Pass --hub <url>, set PASEO_HUB_URL, or log in to a self-hosted Hub.",
       },
     );
 
-    assert.deepEqual(events, [
-      "progress:Logging in to https://hub.paseo.sh",
-      "authorize:https://hub.paseo.sh",
-    ]);
-    assert.equal(result.data.origin, "https://hub.paseo.sh");
+    assert.deepEqual(events, []);
   });
 
   it("connect exchanges authority once and gives only the enrollment token to the daemon", async () => {
@@ -178,10 +181,10 @@ describe("Hub commands", () => {
     assert.deepEqual(requests, ["https://active.test:active-secret"]);
   });
 
-  it("connect without authority reports the hosted destination and contacts nothing", async () => {
+  it("connect without an origin contacts neither Hub nor daemon", async () => {
     const progress: string[] = [];
     const credentials = new MemoryCredentials();
-    const daemon = new FakeDaemonConnection(new FakeDaemon("https://hub.paseo.sh"));
+    const daemon = new FakeDaemonConnection(new FakeDaemon("https://hub.test"));
     let hubRequests = 0;
 
     await assert.rejects(
@@ -202,13 +205,13 @@ describe("Hub commands", () => {
         },
       ),
       {
-        code: "HUB_API_KEY_REQUIRED",
+        code: "HUB_ORIGIN_REQUIRED",
         message:
-          "No stored Hub login matches https://hub.paseo.sh. Run `paseo hub login https://hub.paseo.sh`, pass --api-key <secret>, or set PASEO_HUB_API_KEY.",
+          "HanabiCode has no hosted Hub default. Pass --hub <url>, set PASEO_HUB_URL, or log in to a self-hosted Hub.",
       },
     );
 
-    assert.deepEqual(progress, ["Connecting this daemon to https://hub.paseo.sh"]);
+    assert.deepEqual(progress, []);
     assert.equal(hubRequests, 0);
     assert.equal(daemon.connectionCount, 0);
   });
