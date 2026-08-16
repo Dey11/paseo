@@ -22,6 +22,7 @@ import {
   type HostRuntimeStorage,
 } from "./host-runtime";
 import { ReplicaCache } from "./replica-cache";
+import { DEFAULT_DAEMON_ENDPOINT } from "@/constants/product";
 
 class FakeDaemonClient {
   private state: ConnectionState = { status: "idle" };
@@ -3433,6 +3434,7 @@ describe("HostRuntimeStore initial connection hint bootstrap", () => {
     store.boot();
     await firstProbe.promise;
 
+    expect(seenProbes).toContainEqual({ endpoint: DEFAULT_DAEMON_ENDPOINT, useTls: undefined });
     expect(seenProbes).not.toContainEqual(expect.objectContaining({ endpoint: "metro-host:8081" }));
     expect(store.getHosts()).toHaveLength(0);
   });

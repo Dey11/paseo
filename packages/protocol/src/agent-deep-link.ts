@@ -24,7 +24,7 @@ export function buildAgentDeepLinkRoute(
 }
 
 export function buildAgentDeepLink(target: AgentDeepLinkTarget): string {
-  return `paseo:/${buildAgentDeepLinkRoute(target)}`;
+  return `hanabicode:/${buildAgentDeepLinkRoute(target)}`;
 }
 
 export function parseAgentDeepLink(input: string): AgentDeepLinkTarget | null {
@@ -36,7 +36,8 @@ export function parseAgentDeepLink(input: string): AgentDeepLinkTarget | null {
   }
 
   if (
-    url.protocol !== "paseo:" ||
+    // COMPAT(hanabicodeScheme): parse legacy Paseo links until 2027-08-16.
+    !["hanabicode:", "paseo:"].includes(url.protocol) ||
     url.hostname !== "h" ||
     url.username ||
     url.password ||

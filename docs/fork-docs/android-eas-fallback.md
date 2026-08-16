@@ -8,14 +8,12 @@ EAS Build is an Expo-hosted CI service. Expo remains part of the app even when E
 
 Create an Expo account owned by the fork maintainer. Do not use the `getpaseo` organization, its project ID, credentials, Firebase project, or submission accounts.
 
-Before linking a new EAS project, change these upstream values in `packages/app/app.config.js`:
+Before linking a new EAS project, keep the HanabiCode values in `packages/app/app.config.js`:
 
-- the production name and package ID;
-- `expo.slug`;
-- `expo.owner`;
-- `expo.extra.eas.projectId`.
+- production name `HanabiCode` and package ID `com.dey.hanabicode`;
+- slug `hanabicode` and scheme `hanabicode`.
 
-Remove the existing `owner` and `projectId` before running EAS initialization. Otherwise the CLI sees an app linked to the official project and may try to use an account you do not control.
+The repository intentionally has no Expo owner or EAS project ID. Let EAS initialization add only the new fork-owned values.
 
 ## Create the fork project
 
@@ -35,7 +33,7 @@ npx expo config --type public
 
 Inspect the application name, Android package ID, owner, slug, and EAS project ID. Stop if `getpaseo`, `sh.paseo`, or the official project ID remains in a production field.
 
-Keep `packages/app/eas.json` under version control. Its `production-apk` profile already requests a release APK. Resource classes, build queues, and pricing change; select a machine size supported by the fork's Expo plan rather than assuming the upstream `large` setting is included.
+Create `packages/app/eas.json` under version control with a `production-apk` profile that requests an APK. Resource classes, build queues, and pricing change; select a machine size supported by the fork's Expo plan.
 
 ## Create Android credentials
 
@@ -62,7 +60,7 @@ When it finishes:
 1. Download the APK from the Expo build page.
 2. Verify its signing certificate fingerprint.
 3. Install it on Android.
-4. Pair it with the VPS through `relay.paseo.sh`.
+4. Pair it with the VPS through the configured HanabiCode relay.
 5. Confirm a later APK signed by the same key installs over it.
 
 Do not automate a build that has not passed this manual round trip.
@@ -71,7 +69,7 @@ Do not automate a build that has not passed this manual round trip.
 
 Create an Expo access token from the fork maintainer's Expo account. Give it only the access needed to build this project. In the fork GitHub repository, create an Actions secret named `EXPO_TOKEN`.
 
-The upstream `.github/workflows/android-apk-release.yml` already shows the EAS orchestration:
+If you automate the fallback, create a separate manual workflow with this orchestration:
 
 1. GitHub checks out a release tag.
 2. `expo/expo-github-action` authenticates with `EXPO_TOKEN`.

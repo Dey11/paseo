@@ -14,7 +14,7 @@
 #   bash packages/app/maestro/test-workspace-create-android-crash.sh
 #
 # Optional environment:
-#   PASEO_MAESTRO_APP_ID=sh.paseo.debug
+#   PASEO_MAESTRO_APP_ID=com.dey.hanabicode.debug
 #   PASEO_MAESTRO_DIRECT_ENDPOINT=127.0.0.1:6767
 #   PASEO_MAESTRO_DAEMON_WS_URL=ws://127.0.0.1:6767/ws
 #   PASEO_MAESTRO_PROJECT_PATH=/path/to/git/repo
@@ -26,7 +26,7 @@ FLOW_TEMPLATE_DIR="$REPO_ROOT/packages/app/maestro"
 OUT_DIR="/tmp/paseo-workspace-create-android-$(date +%s)"
 CLIENT_EXPORTS="$REPO_ROOT/packages/client/dist/daemon-client.js"
 
-export PASEO_MAESTRO_APP_ID="${PASEO_MAESTRO_APP_ID:-sh.paseo.debug}"
+export PASEO_MAESTRO_APP_ID="${PASEO_MAESTRO_APP_ID:-com.dey.hanabicode.debug}"
 export PASEO_MAESTRO_DIRECT_ENDPOINT="${PASEO_MAESTRO_DIRECT_ENDPOINT:-127.0.0.1:6767}"
 export PASEO_MAESTRO_DAEMON_WS_URL="${PASEO_MAESTRO_DAEMON_WS_URL:-ws://127.0.0.1:6767/ws}"
 
@@ -77,7 +77,7 @@ if [ -z "${PASEO_MAESTRO_PROJECT_PATH:-}" ]; then
   mkdir -p "$PASEO_MAESTRO_PROJECT_PATH"
   git -C "$PASEO_MAESTRO_PROJECT_PATH" init >/dev/null
   git -C "$PASEO_MAESTRO_PROJECT_PATH" checkout -b main >/dev/null 2>&1 || true
-  git -C "$PASEO_MAESTRO_PROJECT_PATH" config user.name "Paseo Maestro"
+  git -C "$PASEO_MAESTRO_PROJECT_PATH" config user.name "HanabiCode Maestro"
   git -C "$PASEO_MAESTRO_PROJECT_PATH" config user.email "maestro@getpaseo.local"
   printf "# Workspace create Android repro\n" > "$PASEO_MAESTRO_PROJECT_PATH/README.md"
   git -C "$PASEO_MAESTRO_PROJECT_PATH" add README.md

@@ -1,5 +1,5 @@
 {
-  description = "Paseo - self-hosted daemon for AI coding agents";
+  description = "HanabiCode - self-hosted daemon for AI coding agents";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -37,6 +37,7 @@
         in
         {
           default = paseo;
+          hanabicode = paseo;
           paseo = paseo;
           desktop = pkgs.callPackage ./nix/desktop-package.nix {
             inherit paseo;
@@ -45,13 +46,14 @@
         }
       );
 
-      nixosModules.default = self.nixosModules.paseo;
-      nixosModules.paseo =
+      nixosModules.default = self.nixosModules.hanabicode;
+      nixosModules.hanabicode =
         { pkgs, lib, ... }:
         {
           imports = [ ./nix/module.nix ];
-          services.paseo.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+          services.hanabicode.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.default;
         };
+      nixosModules.paseo = self.nixosModules.hanabicode;
 
       devShells = forAllSystems (
         system:

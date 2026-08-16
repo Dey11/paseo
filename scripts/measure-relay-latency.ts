@@ -1,14 +1,15 @@
-import { DaemonClient } from "../packages/server/src/client/daemon-client.js";
-import { buildRelayWebSocketUrl } from "../packages/server/src/shared/daemon-endpoints.js";
-import { buildDaemonWebSocketUrl } from "../packages/server/src/shared/daemon-endpoints.js";
+import { DaemonClient } from "../packages/client/src/daemon-client.js";
+import {
+  buildDaemonWebSocketUrl,
+  buildRelayWebSocketUrl,
+} from "../packages/protocol/src/daemon-endpoints.js";
 
-const OFFER = {
-  serverId: "srv_ETXtcjYRGrCI",
-  daemonPublicKeyB64: "12yCG8sqNumkwHMOQyRM/vMXfPc6nb430pj27sfARBc=",
-  relay: { endpoint: "relay.paseo.sh:443" },
-};
+const RELAY_ENDPOINT = process.env.PASEO_RELAY_ENDPOINT;
+const SERVER_ID = process.env.PASEO_SERVER_ID;
+const DAEMON_PUBLIC_KEY_B64 = process.env.PASEO_DAEMON_PUBLIC_KEY_B64;
+const RELAY_USE_TLS = process.env.PASEO_RELAY_USE_TLS === "true";
 
-const DIRECT_ENDPOINT = "localhost:6767";
+const DIRECT_ENDPOINT = process.env.PASEO_DIRECT_ENDPOINT ?? "localhost:6769";
 const PING_COUNT = 20;
 const WARMUP_COUNT = 3;
 
@@ -84,33 +85,41 @@ async function measurePings(
 }
 
 async function main() {
+  if (!RELAY_ENDPOINT || !SERVER_ID || !DAEMON_PUBLIC_KEY_B64) {
+    throw new Error(
+      "PASEO_RELAY_ENDPOINT, PASEO_SERVER_ID, and PASEO_DAEMON_PUBLIC_KEY_B64 are required",
+    );
+  }
   console.log("=== Relay Latency Measurement ===\n");
 
   // Measure direct connection
   console.log("Connecting direct...");
   const directClient = await connectClient("Direct", {
-    url: buildDaemonWebSocketUrl(DIRECT_ENDPOINT),
+    url: buildDaemonWebSocketUrl(DIRECT_ENDPOINT, { useTls: false }),
+    clientId: `hanabicode-latency-direct-${process.pid}`,
   });
 
-  await measurePings("Direct (localhost:6767)", directClient, PING_COUNT, WARMUP_COUNT);
+  await measurePings(`Direct (${DIRECT_ENDPOINT})`, directClient, PING_COUNT, WARMUP_COUNT);
 
   // Measure relay connection
   console.log("\nConnecting via relay...");
   const relayUrl = buildRelayWebSocketUrl({
-    endpoint: OFFER.relay.endpoint,
-    serverId: OFFER.serverId,
+    endpoint: RELAY_ENDPOINT,
+    useTls: RELAY_USE_TLS,
+    serverId: SERVER_ID,
     role: "client",
   });
 
   const relayClient = await connectClient("Relay", {
     url: relayUrl,
+    clientId: `hanabicode-latency-relay-${process.pid}`,
     e2ee: {
       enabled: true,
-      daemonPublicKeyB64: OFFER.daemonPublicKeyB64,
+      daemonPublicKeyB64: DAEMON_PUBLIC_KEY_B64,
     },
   });
 
-  await measurePings("Relay (relay.paseo.sh:443)", relayClient, PING_COUNT, WARMUP_COUNT);
+  await measurePings(`Relay (${RELAY_ENDPOINT})`, relayClient, PING_COUNT, WARMUP_COUNT);
 
   // Measure raw WebSocket to relay (no E2EE, no daemon, just WS open+close timing)
   console.log("\nMeasuring raw WebSocket connect time to relay...");
@@ -118,8 +127,9 @@ async function main() {
   for (let i = 0; i < 5; i++) {
     const start = Date.now();
     const { WebSocket } = await import("ws");
+    const protocol = RELAY_USE_TLS ? "wss" : "ws";
     const ws = new WebSocket(
-      `wss://relay.paseo.sh/ws?serverId=latency_probe_${Date.now()}&role=client&clientId=probe_${i}`,
+      `${protocol}://${RELAY_ENDPOINT}/ws?serverId=latency_probe_${Date.now()}&role=client&clientId=probe_${i}`,
     );
     await new Promise<void>((resolve, reject) => {
       ws.on("open", () => {

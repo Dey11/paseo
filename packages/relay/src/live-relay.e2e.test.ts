@@ -9,10 +9,7 @@ import {
   decrypt,
 } from "./crypto.js";
 
-// This live test uses the hosted relay's real TLS endpoint. Self-hosted relay TLS
-// opt-in is covered at URL-building/integration level so the local E2E does not
-// need to provision trusted certificates.
-const RELAY_BASE_URL = process.env.PASEO_LIVE_RELAY_URL ?? "wss://relay.paseo.sh";
+const RELAY_BASE_URL = process.env.PASEO_LIVE_RELAY_URL;
 
 async function withRetry<T>(
   fn: () => Promise<T>,
@@ -90,10 +87,11 @@ function waitForOnceMessage<T extends "string" | "buffer">(
   });
 }
 
-describe("Live relay (relay.paseo.sh) E2E", () => {
-  const liveIt = process.env.RUN_LIVE_RELAY_E2E === "1" ? it : it.skip;
+describe("Live HanabiCode relay E2E", () => {
+  const liveIt = process.env.RUN_LIVE_RELAY_E2E === "1" && RELAY_BASE_URL ? it : it.skip;
 
   liveIt("bridges encrypted traffic end-to-end", { timeout: 45_000 }, async () => {
+    if (!RELAY_BASE_URL) throw new Error("PASEO_LIVE_RELAY_URL is required");
     await withRetry(
       async () => {
         const serverId = `live-${Date.now()}-${Math.random().toString(16).slice(2)}`;

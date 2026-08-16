@@ -7,10 +7,10 @@ describe("cli-install-path", () => {
       resolveCliInstallSourcePath({
         platform: "darwin",
         isPackaged: true,
-        executablePath: "/Applications/Paseo.app/Contents/MacOS/Paseo",
-        shimPath: "/Applications/Paseo.app/Contents/Resources/bin/paseo",
+        executablePath: "/Applications/HanabiCode.app/Contents/MacOS/HanabiCode",
+        shimPath: "/Applications/HanabiCode.app/Contents/Resources/bin/hanabicode",
       }),
-    ).toBe("/Applications/Paseo.app/Contents/Resources/bin/paseo");
+    ).toBe("/Applications/HanabiCode.app/Contents/Resources/bin/hanabicode");
   });
 
   it("prefers the original AppImage path on linux", () => {
@@ -18,11 +18,11 @@ describe("cli-install-path", () => {
       resolveCliInstallSourcePath({
         platform: "linux",
         isPackaged: true,
-        executablePath: "/tmp/.mount_paseo123/paseo",
-        shimPath: "/tmp/.mount_paseo123/resources/bin/paseo",
-        appImagePath: "/home/user/Applications/Paseo.AppImage",
+        executablePath: "/tmp/.mount_hanabi123/hanabicode",
+        shimPath: "/tmp/.mount_hanabi123/resources/bin/hanabicode",
+        appImagePath: "/home/user/Applications/HanabiCode.AppImage",
       }),
-    ).toBe("/home/user/Applications/Paseo.AppImage");
+    ).toBe("/home/user/Applications/HanabiCode.AppImage");
   });
 
   it("falls back to the shim on windows and in development", () => {
@@ -30,18 +30,19 @@ describe("cli-install-path", () => {
       resolveCliInstallSourcePath({
         platform: "win32",
         isPackaged: true,
-        executablePath: "C:\\Users\\user\\AppData\\Local\\Programs\\Paseo\\Paseo.exe",
-        shimPath: "C:\\Users\\user\\AppData\\Local\\Programs\\Paseo\\resources\\bin\\paseo.cmd",
+        executablePath: "C:\\Users\\user\\AppData\\Local\\Programs\\HanabiCode\\HanabiCode.exe",
+        shimPath:
+          "C:\\Users\\user\\AppData\\Local\\Programs\\HanabiCode\\resources\\bin\\hanabicode.cmd",
       }),
-    ).toBe("C:\\Users\\user\\AppData\\Local\\Programs\\Paseo\\resources\\bin\\paseo.cmd");
+    ).toBe("C:\\Users\\user\\AppData\\Local\\Programs\\HanabiCode\\resources\\bin\\hanabicode.cmd");
 
     expect(
       resolveCliInstallSourcePath({
         platform: "linux",
         isPackaged: false,
-        executablePath: "/opt/Paseo/paseo",
-        shimPath: "/opt/Paseo/resources/bin/paseo",
+        executablePath: "/opt/HanabiCode/hanabicode",
+        shimPath: "/opt/HanabiCode/resources/bin/hanabicode",
       }),
-    ).toBe("/opt/Paseo/resources/bin/paseo");
+    ).toBe("/opt/HanabiCode/resources/bin/hanabicode");
   });
 });

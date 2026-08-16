@@ -1,196 +1,89 @@
-<p align="center">
-  <img src="packages/website/public/logo.svg" width="64" height="64" alt="Paseo logo">
-</p>
+<h1 align="center">HanabiCode</h1>
 
-<h1 align="center">Paseo</h1>
+<p align="center">Run and control Claude Code, Codex, Copilot, OpenCode, and Pi agents from desktop, Android, web, or the CLI.</p>
 
 <p align="center">
-  <a href="README.md">English</a> ·
-  <a href="README.zh-CN.md">简体中文</a> ·
-  <a href="README.ja.md">日本語</a> ·
-  <a href="README.ko.md">한국어</a>
+  <a href="https://github.com/Dey11/hanabicode/releases">Releases</a> ·
+  <a href="docs/fork-docs/distribution.md">Install and release guide</a> ·
+  <a href="docs/fork-docs/relay-options.md">Connectivity</a> ·
+  <a href="LICENSE">License</a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/getpaseo/paseo/stargazers">
-    <img src="https://img.shields.io/github/stars/getpaseo/paseo?style=flat&logo=github" alt="GitHub stars">
-  </a>
-  <a href="https://github.com/getpaseo/paseo/releases">
-    <img src="https://img.shields.io/github/v/release/getpaseo/paseo?style=flat&logo=github" alt="GitHub release">
-  </a>
-  <a href="https://x.com/moboudra">
-    <img src="https://img.shields.io/badge/%40moboudra-555?logo=x" alt="X">
-  </a>
-  <a href="https://discord.gg/jz8T2uahpH">
-    <img src="https://img.shields.io/badge/Discord-555?logo=discord" alt="Discord">
-  </a>
-  <a href="https://www.reddit.com/r/PaseoAI/">
-    <img src="https://img.shields.io/badge/Reddit-555?logo=reddit" alt="Reddit">
-  </a>
-</p>
+> HanabiCode is a modified, renamed downstream fork of
+> [Paseo](https://github.com/getpaseo/paseo). It is not endorsed by or affiliated
+> with the upstream project.
 
-<p align="center">One interface for Claude Code, Codex, Copilot, OpenCode, and Pi agents.</p>
+HanabiCode runs coding agents on your own machines and gives you one interface for
+monitoring them, sending follow-ups, handling approvals, using terminals, and
+forwarding workspace ports from a remote host to the desktop app.
 
-<p align="center">
-  <img src="https://paseo.sh/hero-mockup.png" alt="Paseo app screenshot" width="100%">
-</p>
+- **Self-hosted daemon:** your repositories and agent processes stay on your machine or VPS.
+- **Desktop port forwarding:** expose a workspace service on a local desktop port through the active encrypted connection.
+- **Multiple providers:** use Claude Code, Codex, Copilot, OpenCode, and Pi from the same client.
+- **Cross-device clients:** macOS, Windows, Android, web, and CLI share the same protocol.
+- **Independent install:** HanabiCode uses `~/.hanabicode`, local port `6769`, app ID `com.dey.hanabicode`, and the `hanabicode` URL scheme so it can run beside Paseo.
 
-<p align="center">
-  <img src="https://paseo.sh/mobile-mockup.png" alt="Paseo mobile app" width="100%">
-</p>
+## Install
 
-Run agents in parallel on your own machines. Ship from your phone or your desk.
+Download the latest artifacts from [GitHub Releases](https://github.com/Dey11/hanabicode/releases).
+The initial macOS builds are ad-hoc signed and not notarized; Windows builds are
+unsigned. Android releases are signed with HanabiCode's Android release key.
 
-- **Self-hosted:** Agents run on your machine with your full dev environment. Use your tools, your configs, and your skills.
-- **Multi-provider:** Claude Code, Codex, Copilot, OpenCode, and Pi through the same interface. Pick the right model for each job.
-- **Voice control:** Dictate tasks or talk through problems in voice mode. Hands-free when you need it.
-- **Cross-device:** iOS, Android, desktop, web, and CLI. Start work at your desk, check in from your phone, script it from the terminal.
-- **Privacy-first:** Paseo doesn't have any telemetry, tracking, or forced log-ins.
+See [the installation and release guide](docs/fork-docs/distribution.md) for
+platform-specific installation steps, signing status, release secrets, and the
+exact workflow used to publish a version.
 
-## Getting Started
+## Run from source
 
-Paseo runs a local server called the daemon that manages your coding agents. Clients like the desktop app, mobile app, web app, and CLI connect to it.
-
-### Prerequisites
-
-You need at least one agent CLI installed and configured with your credentials:
-
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-- [Codex](https://github.com/openai/codex)
-- [GitHub Copilot](https://github.com/features/copilot/cli/)
-- [OpenCode](https://github.com/anomalyco/opencode)
-- [Pi](https://pi.dev)
-
-### Desktop app (recommended)
-
-Download it from [paseo.sh/download](https://paseo.sh/download) or the [GitHub releases page](https://github.com/getpaseo/paseo/releases). Open the app and the daemon starts automatically. Nothing else to install.
-
-To connect from your phone, open **Settings → your host → Pair Device**.
-
-### CLI / headless
-
-Install the CLI and start Paseo:
+Requirements: Node.js 22 and the native build tools required by the target
+platform.
 
 ```bash
-npm install -g @getpaseo/cli
-paseo
+npm install
+npm run build:server
+npm run dev:desktop
 ```
 
-Paseo starts locally, then asks whether to enable the end-to-end encrypted relay for device pairing. If you decline, connect directly over TCP, Tailscale, or another VPN. This path is useful for servers and remote machines.
-
-For full setup and configuration, see:
-
-- [Docs](https://paseo.sh/docs)
-- [Connectivity guide](https://paseo.sh/docs/connectivity)
-- [Configuration reference](https://paseo.sh/docs/configuration)
-
-### Docker
-
-Run the Paseo daemon and self-hosted web UI in Docker:
+Useful commands:
 
 ```bash
-docker run -d --name paseo \
-  -p 6767:6767 \
-  -e PASEO_PASSWORD=change-me \
-  -v "$PWD/paseo-home:/home/paseo" \
-  -v "$PWD:/workspace" \
-  ghcr.io/getpaseo/paseo:latest
-```
-
-Open `http://localhost:6767` after it starts. Extend the base image with the agent CLIs you use, then provide credentials through environment variables or the persistent `/home/paseo` volume. See the [Docker documentation](docs/docker.md) for full setup details.
-
-## CLI
-
-Everything you can do in the app, you can do from the terminal.
-
-```bash
-paseo run --provider claude/opus-4.6 "implement user authentication"
-paseo run --provider codex/gpt-5.5 --worktree feature-x "implement feature X"
-
-paseo ls                           # list running agents
-paseo attach abc123                # stream live output
-paseo send abc123 "also add tests" # follow-up task
-
-# run on a remote daemon
-paseo --host workstation.local:6767 run "run the full test suite"
-```
-
-See the [full CLI reference](https://paseo.sh/docs/cli) for more.
-
-## TypeScript SDK
-
-Build issue integrations, dashboards, and orchestration services with `@getpaseo/client`:
-
-```ts
-import { createPaseoClient } from "@getpaseo/client";
-
-const client = createPaseoClient({ url: "ws://127.0.0.1:6767/ws" });
-await client.connect();
-
-const agent = await client.agents.create({
-  config: { provider: "codex/gpt-5.5" },
-  cwd: "/Users/me/dev/storefront",
-  prompt: "Review the current diff and name the riskiest change.",
-});
-
-const result = await agent.waitForFinish();
-console.log(result.lastMessage);
-
-await client.close();
-```
-
-See the [SDK quickstart](https://paseo.sh/docs/sdk/quickstart), [recipes](https://paseo.sh/docs/sdk/recipes), and [API reference](https://paseo.sh/docs/sdk/reference).
-
-## Skills
-
-Skills teach your agent to use Paseo to orchestrate other agents.
-
-```bash
-npx skills add getpaseo/paseo
-```
-
-Then use them in any agent conversation:
-
-- `/paseo-handoff` — hand off work between agents. I use this to plan with Claude and then handoff to Codex to implement.
-- `/paseo-advisor` — spin up a single agent as an advisor for a second opinion, without delegating the work itself.
-- `/paseo-committee` — form a committee of two contrasting agents to step back, do root cause analysis, and produce a plan.
-
-## Development
-
-Quick monorepo package map:
-
-- `packages/server`: Paseo daemon (agent process orchestration, WebSocket API, MCP server)
-- `packages/app`: Expo client (iOS, Android, web)
-- `packages/cli`: `paseo` CLI for daemon and agent workflows
-- `packages/desktop`: Electron desktop app
-- `packages/relay`: Relay transport and encryption used by the daemon and clients
-- `packages/website`: Marketing site and documentation (`paseo.sh`)
-
-Common commands:
-
-```bash
-# run all local dev services
-npm run dev
-
-# run individual surfaces
 npm run dev:server
 npm run dev:app
 npm run dev:desktop
-npm run dev:website
-
-# build the server stack
-npm run build:server
-
-# repo-wide checks
+npm run cli -- daemon status
 npm run typecheck
+npm run lint
 ```
 
-## Related projects
+The installed desktop app bundles the `hanabicode` CLI. HanabiCode intentionally retains
+the inherited `PASEO_*` environment-variable prefix as a compatibility API. See
+[`.env.example`](.env.example) for safe defaults and relay configuration.
 
-- [getpaseo/paseo-relay](https://github.com/getpaseo/paseo-relay) — official distributed relay, written in Elixir
-- [paseo-skins](https://github.com/huangguang1999/paseo-skins) — community themes and a zero-patch desktop theme loader with an Agent Skill
-- [paseo-vscode](https://marketplace.visualstudio.com/items?itemName=hinnes.paseo-vscode) — VS Code extension
+## Repository map
 
-## License
+- `packages/server` — daemon and agent lifecycle
+- `packages/app` — Expo Android, iOS, web, and Electron renderer
+- `packages/desktop` — Electron main process and installers
+- `packages/cli` — `hanabicode` command-line client
+- `packages/protocol` — backward-compatible wire schemas
+- `packages/relay` — in-repository relay transport implementation
 
-AGPL-3.0
+## Connectivity
+
+HanabiCode can connect directly over LAN/Tailscale or through an end-to-end encrypted
+relay. The fork does not assume an upstream hosted relay. Configure a self-hosted
+endpoint before enabling relay pairing. The recommended deployment and option
+comparison are in [docs/fork-docs/relay-options.md](docs/fork-docs/relay-options.md).
+
+## License and source
+
+HanabiCode is distributed under the
+[GNU Affero General Public License v3 or later](LICENSE). You may inspect,
+modify, redistribute, host, and charge for copies or services under those terms.
+Modified network deployments and distributed binaries must keep the notices and
+offer their users the corresponding source.
+
+The GNU license text in `LICENSE` is retained unchanged. Fork attribution and
+additional copyright notices live in [NOTICE](NOTICE). See
+[docs/fork-docs/licensing.md](docs/fork-docs/licensing.md) for practical fork
+compliance guidance.

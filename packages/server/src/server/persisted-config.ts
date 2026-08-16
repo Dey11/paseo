@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { DEFAULT_HANABICODE_APP_BASE_URL, DEFAULT_HANABICODE_LISTEN } from "./product.js";
 import { z } from "zod";
 
 import {
@@ -345,16 +346,16 @@ const CONFIG_FILENAME = "config.json";
 const DEFAULT_PERSISTED_CONFIG = PersistedConfigSchema.parse({
   version: 1,
   daemon: {
-    listen: "127.0.0.1:6767",
+    listen: DEFAULT_HANABICODE_LISTEN,
     cors: {
-      allowedOrigins: ["https://app.paseo.sh"],
+      allowedOrigins: ["hanabicode://app"],
     },
     relay: {
       enabled: false,
     },
   },
   app: {
-    baseUrl: "https://app.paseo.sh",
+    baseUrl: DEFAULT_HANABICODE_APP_BASE_URL,
   },
 }) as PersistedConfig;
 

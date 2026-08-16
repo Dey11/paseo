@@ -7,7 +7,7 @@ import type { AgentSnapshotPayload } from "@getpaseo/protocol/messages";
 
 export function addImportOptions(cmd: Command): Command {
   return cmd
-    .description("Import an existing provider session as a Paseo agent")
+    .description("Import an existing provider session as a HanabiCode agent")
     .argument("<id>", "Provider session/thread ID to import")
     .requiredOption("--provider <provider>", "Agent provider id")
     .option("--cwd <path>", "Working directory for providers that require it")
@@ -105,7 +105,7 @@ async function connectToDaemonOrThrow(
     throw {
       code: "DAEMON_NOT_RUNNING",
       message: `Cannot connect to daemon at ${host}: ${message}`,
-      details: "Start the daemon with: paseo daemon start",
+      details: "Start the daemon with: hanabicode daemon start",
     } satisfies CommandError;
   }
 }

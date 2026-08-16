@@ -73,7 +73,7 @@ export async function runAllowCommand(
     const error: CommandError = {
       code: "DAEMON_NOT_RUNNING",
       message: `Cannot connect to daemon at ${host}: ${message}`,
-      details: "Start the daemon with: paseo daemon start",
+      details: "Start the daemon with: hanabicode daemon start",
     };
     throw error;
   }
@@ -85,7 +85,7 @@ export async function runAllowCommand(
       const error: CommandError = {
         code: "AGENT_NOT_FOUND",
         message: `Agent not found: ${agentIdOrPrefix}`,
-        details: 'Use "paseo ls" to list available agents',
+        details: 'Use "hanabicode ls" to list available agents',
       };
       throw error;
     }

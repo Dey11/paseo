@@ -10,7 +10,7 @@ describe("open-project-routing", () => {
 
     expect(
       parseOpenProjectPathFromArgv({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo", projectPath],
+        argv: ["/Applications/HanabiCode.app/Contents/MacOS/HanabiCode", projectPath],
         isDefaultApp: false,
       }),
     ).toBe(projectPath);
@@ -22,7 +22,7 @@ describe("open-project-routing", () => {
     expect(
       parseOpenProjectPathFromArgv({
         argv: [
-          "/Applications/Paseo.app/Contents/MacOS/Paseo",
+          "/Applications/HanabiCode.app/Contents/MacOS/HanabiCode",
           "--allow-file-access-from-files",
           "--no-sandbox",
           projectPath,
@@ -39,14 +39,18 @@ describe("open-project-routing", () => {
 
     expect(
       parseOpenProjectPathFromArgv({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo", "--version", flagLikeDirectory],
+        argv: [
+          "/Applications/HanabiCode.app/Contents/MacOS/HanabiCode",
+          "--version",
+          flagLikeDirectory,
+        ],
         isDefaultApp: false,
       }),
     ).toBe(flagLikeDirectory);
 
     expect(
       parseOpenProjectPathFromArgv({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo", "--version"],
+        argv: ["/Applications/HanabiCode.app/Contents/MacOS/HanabiCode", "--version"],
         isDefaultApp: false,
       }),
     ).toBeNull();
@@ -57,7 +61,11 @@ describe("open-project-routing", () => {
 
     expect(
       parseOpenProjectPathFromArgv({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo", "--open-project", projectPath],
+        argv: [
+          "/Applications/HanabiCode.app/Contents/MacOS/HanabiCode",
+          "--open-project",
+          projectPath,
+        ],
         isDefaultApp: false,
       }),
     ).toBe(projectPath);

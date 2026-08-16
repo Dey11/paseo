@@ -1,6 +1,6 @@
-# Fork licensing
+# HanabiCode licensing
 
-Paseo is licensed under the GNU Affero General Public License v3. The planned personal fork, GitHub-built installers, official-relay use, and sharing with friends can comply. Compliance depends on shipping source and notices with the shared fork; friendship and noncommercial use do not create an exemption.
+HanabiCode is a modified fork of Paseo licensed under the GNU Affero General Public License v3 or later. GitHub-built installers, hosted use, and sharing with friends can comply. Compliance depends on shipping source and notices with the shared fork; friendship and noncommercial use do not create an exemption.
 
 Treat this as practical project guidance. The repository's [LICENSE](../../LICENSE) is the controlling text; consult a lawyer when a commercial or private-distribution model needs a legal opinion.
 
@@ -48,15 +48,23 @@ AGPL section 13 requires a modified program that supports remote network interac
 - a clear “Modified fork of Paseo” notice;
 - the client version and connected daemon version, so a user can identify the source that applies.
 
-The current About screen shows versions and upstream community links but does not satisfy this fork-specific release policy. Treat the source/license UI as a release gate, not an optional polish task.
+The shared About screen shows the modified-fork notice, exact build source when a release commit is embedded, license, client version, and connected daemon versions. Keep that source offer prominent when the screen changes.
 
 If a browser-accessible daemon UI is shared independently of the installed app, put the same source offer in that interface. A link buried only in GitHub release notes does not reach a network user who never downloaded an installer.
 
-## Official relay
+## Editing the license
 
-Using `relay.paseo.sh` does not change the fork's license obligations. The relay and fork communicate through the network protocol as separate programs.
+You may modify, redistribute, host, and charge for HanabiCode. You may add copyright notices for your own changes in `NOTICE` or source headers. Do not edit the GNU license text in `LICENSE`, remove upstream notices, or add terms that deny recipients their AGPL rights.
 
-You remain responsible for source access for the modified client and daemon you distribute or operate. Upstream remains responsible for its relay service. This license conclusion does not promise continued access to the upstream relay or override its service terms.
+Renaming the executable or repository does not make the combined fork proprietary. Code that you write as a genuinely separate program can use another license, but a process boundary is not automatically a copyright boundary. Get legal advice before relying on a split architecture to change the licensing result.
+
+Existing permissions cannot be withdrawn from copies already released. Upstream or HanabiCode can sell AGPL builds and services. A copyright owner can offer code they solely own under another license, but cannot unilaterally relicense other contributors' AGPL-only work.
+
+## Relay
+
+The separate `getpaseo/paseo-relay` repository is Apache-2.0. A HanabiCode fork of that service must keep the Apache license and notices, mark modified files, and avoid upstream branding. Its license does not change the AGPL obligations for the HanabiCode client and daemon.
+
+The `packages/relay` workspace in this monorepo remains part of the AGPL-covered combined source. Do not confuse it with the separate Apache relay service.
 
 ## Branding
 

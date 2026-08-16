@@ -2,7 +2,12 @@ import { spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { loadConfig, resolvePaseoHome, spawnProcess } from "@getpaseo/server";
+import {
+  DEFAULT_HANABICODE_RELAY_ENDPOINT,
+  loadConfig,
+  resolvePaseoHome,
+  spawnProcess,
+} from "@getpaseo/server";
 import treeKill from "tree-kill";
 import { tryConnectToDaemon } from "../../utils/client.js";
 
@@ -559,8 +564,9 @@ export function resolveLocalDaemonState(options: { home?: string } = {}): LocalD
   return {
     home,
     listen,
-    relayEnabled: config.relayEnabled ?? true,
-    relayEndpoint: config.relayPublicEndpoint ?? config.relayEndpoint ?? "relay.paseo.sh:443",
+    relayEnabled: config.relayEnabled ?? false,
+    relayEndpoint:
+      config.relayPublicEndpoint ?? config.relayEndpoint ?? DEFAULT_HANABICODE_RELAY_ENDPOINT,
     relayUseTls: config.relayUseTls ?? false,
     relayPublicUseTls: config.relayPublicUseTls ?? config.relayUseTls ?? false,
     logPath,

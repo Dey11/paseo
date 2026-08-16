@@ -14,6 +14,7 @@ import { resolveAppVersion } from "@/utils/app-version";
 import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
 import { buildOpenProjectRoute } from "@/utils/host-routes";
 import { PaseoLogo } from "@/components/icons/paseo-logo";
+import { SOURCE_REPOSITORY_URL } from "@/constants/product";
 import { openExternalUrl } from "@/utils/open-external-url";
 import { isFdroidBuild } from "@/constants/build-profile";
 import { isWeb, isNative } from "@/constants/platform";
@@ -178,8 +179,8 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
     router.replace(buildOpenProjectRoute());
   }, [router]);
 
-  const handleOpenPaseoSite = useCallback(() => {
-    void openExternalUrl("https://paseo.sh");
+  const handleOpenHanabiCodeSource = useCallback(() => {
+    void openExternalUrl(SOURCE_REPOSITORY_URL);
   }, []);
 
   const handleOpenSettings = useCallback(() => {
@@ -268,8 +269,8 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
             <Text style={styles.title}>{t("onboarding.title")}</Text>
             <Text style={styles.subtitle}>{t("onboarding.subtitle")}</Text>
             {isNative ? (
-              <Pressable style={styles.setupLink} onPress={handleOpenPaseoSite}>
-                <Text style={styles.setupLinkText}>paseo.sh</Text>
+              <Pressable style={styles.setupLink} onPress={handleOpenHanabiCodeSource}>
+                <Text style={styles.setupLinkText}>github.com/Dey11/hanabicode</Text>
                 <ExternalLink size={14} color={theme.colors.accent} />
               </Pressable>
             ) : null}

@@ -1,17 +1,13 @@
-name = "paseo-website"
-account_id = "10ed39a1dbf316e30abd0c409bed40d6"
+name = "hanabicode-website"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 main = "./src/server-entry.ts"
 
-routes = [
-  { pattern = "paseo.sh", custom_domain = true },
-  { pattern = "www.paseo.sh", custom_domain = true },
-]
+workers_dev = true
 
 [observability]
 enabled = true
 
 [[kv_namespaces]]
 binding = "WEBSITE_CACHE"
-id = "cb4d8779806544e9b673142a80c1eb5f"
+id = "REPLACE_WITH_FORK_KV_NAMESPACE_ID"

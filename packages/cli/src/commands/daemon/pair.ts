@@ -41,7 +41,8 @@ export interface PairingOffer {
 }
 
 const PAIRING_DAEMON_RPC_TIMEOUT_MS = 1500;
-const RELAY_DOCS_URL = "https://paseo.sh/docs/security";
+const RELAY_DOCS_URL =
+  "https://github.com/Dey11/hanabicode/blob/main/docs/fork-docs/relay-options.md";
 
 function createProcessOutput(): PairCommandOutput {
   return {
@@ -63,7 +64,7 @@ function createProcessOutput(): PairCommandOutput {
 
 export function pairCommand(): Command {
   return addJsonOption(new Command("pair").description("Print the daemon pairing QR code and link"))
-    .option("--home <path>", "Paseo home directory (default: ~/.paseo)")
+    .option("--home <path>", "HanabiCode home directory (default: ~/.hanabicode)")
     .option("--relay", "Enable relay without prompting")
     .action(async (_options: PairOptions, command: Command) => {
       await runPairCommand(command.optsWithGlobals());
@@ -117,11 +118,11 @@ async function resolveDaemonPairingOffer(
     const serverInfo = client.getLastServerInfoMessage();
     if (serverInfo?.serverId.trim() !== expectedServerId) {
       throw new Error(
-        "The reachable daemon belongs to a different Paseo home. Check --home or the daemon listen configuration.",
+        "The reachable daemon belongs to a different HanabiCode home. Check --home or the daemon listen configuration.",
       );
     }
     if (serverInfo?.features?.daemonStatusRpc !== true) {
-      throw new Error("Update the Paseo daemon before pairing from this command.");
+      throw new Error("Update the HanabiCode daemon before pairing from this command.");
     }
 
     let offer = await client.getDaemonPairingOffer({
@@ -129,7 +130,7 @@ async function resolveDaemonPairingOffer(
     });
     if (!offer.relayEnabled && enableRelay) {
       if (serverInfo.features.relayConfig !== true) {
-        throw new Error("Update the Paseo daemon before enabling relay from this command.");
+        throw new Error("Update the HanabiCode daemon before enabling relay from this command.");
       }
       await client.patchDaemonConfig({ relay: { enabled: true } });
       offer = await client.getDaemonPairingOffer({
@@ -147,7 +148,9 @@ async function resolveDaemonPairingOffer(
 }
 
 export async function confirmRelayPairing(): Promise<boolean> {
-  log.message("Your connection is end-to-end encrypted. Paseo cannot read your code or messages.");
+  log.message(
+    "Your connection is end-to-end encrypted. HanabiCode cannot read your code or messages.",
+  );
   log.message(`Learn how it works: ${RELAY_DOCS_URL}`);
   const answer = await confirm({
     message: "Enable relay to pair a device?",
@@ -211,12 +214,12 @@ function outputPairingResult(
         `${JSON.stringify({
           code: "RELAY_DISABLED",
           message: "Relay pairing is disabled for this daemon.",
-          action: "Run paseo daemon pair --relay --json to enable it explicitly.",
+          action: "Run hanabicode daemon pair --relay --json to enable it explicitly.",
         })}\n`,
       );
     } else {
       output.writeStderr(`${chalk.red("Relay pairing is disabled for this daemon.")}\n`);
-      output.writeStderr(`${chalk.yellow("Run paseo daemon pair --relay to enable it.")}\n`);
+      output.writeStderr(`${chalk.yellow("Run hanabicode daemon pair --relay to enable it.")}\n`);
     }
     output.setExitCode(1);
     return;

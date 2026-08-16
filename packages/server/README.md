@@ -108,4 +108,6 @@ More testing guidance as features are implemented.
 
 ## License
 
-MIT
+The HanabiCode daemon is part of the modified Paseo fork and is distributed under
+the repository's [GNU Affero General Public License v3 or later](../../LICENSE).
+See [NOTICE](../../NOTICE) for fork attribution and the corresponding source URL.

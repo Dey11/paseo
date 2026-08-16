@@ -1,26 +1,24 @@
 import { useCallback } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Heart } from "lucide-react-native";
+import { GitFork, Scale } from "lucide-react-native";
 import { Button } from "@/components/ui/button";
 import { GitHubIcon } from "@/components/icons/github-icon";
-import { DiscordIcon } from "@/components/icons/discord-icon";
 import { openExternalUrl } from "@/utils/open-external-url";
+import { EXACT_SOURCE_URL, LICENSE_URL, UPSTREAM_REPOSITORY_URL } from "@/constants/product";
 
 const renderGitHubIcon = (color: string) => <GitHubIcon color={color} size={14} />;
-const renderDiscordIcon = (color: string) => <DiscordIcon color={color} size={14} />;
-
 export function CommunityLinks() {
-  const handleOpenGitHub = useCallback(() => {
-    void openExternalUrl("https://github.com/getpaseo/paseo");
+  const handleOpenSource = useCallback(() => {
+    void openExternalUrl(EXACT_SOURCE_URL);
   }, []);
 
-  const handleOpenSponsor = useCallback(() => {
-    void openExternalUrl("https://github.com/sponsors/boudra");
+  const handleOpenLicense = useCallback(() => {
+    void openExternalUrl(LICENSE_URL);
   }, []);
 
-  const handleOpenDiscord = useCallback(() => {
-    void openExternalUrl("https://discord.gg/jz8T2uahpH");
+  const handleOpenUpstream = useCallback(() => {
+    void openExternalUrl(UPSTREAM_REPOSITORY_URL);
   }, []);
 
   return (
@@ -29,28 +27,28 @@ export function CommunityLinks() {
         variant="ghost"
         size="sm"
         leftIcon={renderGitHubIcon}
-        onPress={handleOpenGitHub}
-        testID="community-links-github-star"
+        onPress={handleOpenSource}
+        testID="community-links-source"
       >
-        Star
+        Source
       </Button>
       <Button
         variant="ghost"
         size="sm"
-        leftIcon={Heart}
-        onPress={handleOpenSponsor}
-        testID="community-links-sponsor"
+        leftIcon={Scale}
+        onPress={handleOpenLicense}
+        testID="community-links-license"
       >
-        Sponsor
+        AGPL license
       </Button>
       <Button
         variant="ghost"
         size="sm"
-        leftIcon={renderDiscordIcon}
-        onPress={handleOpenDiscord}
-        testID="community-links-discord"
+        leftIcon={GitFork}
+        onPress={handleOpenUpstream}
+        testID="community-links-upstream"
       >
-        Community
+        Upstream
       </Button>
     </View>
   );

@@ -1,0 +1,555 @@
+name: HanabiCode Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing v* tag to release (for example v0.5.0)"
+        required: true
+        type: string
+
+concurrency:
+  group: hanabicode-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+  DESKTOP_PACKAGE_PATH: packages/desktop
+
+jobs:
+  prepare:
+    name: Prepare draft release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      channel: ${{ steps.release.outputs.channel }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - id: release
+        name: Validate tag and package versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$RELEASE_TAG"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[1-9][0-9]*)?$ ]]; then
+            echo "::error::Release tag must match vX.Y.Z or vX.Y.Z-beta.N"
+            exit 1
+          fi
+
+          git rev-parse --verify "refs/tags/$tag^{commit}" >/dev/null
+          commit="$(git rev-parse "refs/tags/$tag^{commit}")"
+          if [[ "$(git rev-parse HEAD)" != "$commit" ]]; then
+            echo "::error::Checkout does not match $tag"
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$commit" origin/main; then
+            echo "::error::$tag does not point to a commit on main"
+            exit 1
+          fi
+
+          version="${tag#v}"
+          node - "$version" <<'NODE'
+          const fs = require("node:fs");
+          const expected = process.argv[2];
+          const manifests = [
+            "package.json",
+            "packages/app/package.json",
+            "packages/desktop/package.json",
+          ];
+          for (const manifest of manifests) {
+            const actual = JSON.parse(fs.readFileSync(manifest, "utf8")).version;
+            if (actual !== expected) {
+              throw new Error(`${manifest} has version ${actual}; expected ${expected} from the tag`);
+            }
+          }
+          NODE
+
+          prerelease=false
+          channel=latest
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+            channel=beta
+          fi
+          {
+            echo "version=$version"
+            echo "channel=$channel"
+            echo "prerelease=$prerelease"
+            echo "commit=$commit"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create or validate draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          RELEASE_PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,tagName 2>/dev/null)"; then
+            if [[ "$(jq -r '.isDraft' <<<"$release_json")" != "true" ]]; then
+              echo "::error::$RELEASE_TAG already has a published GitHub release"
+              exit 1
+            fi
+            exit 0
+          fi
+
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          cat > "$notes_file" <<EOF
+          HanabiCode is a modified downstream fork of Paseo and is not an official Paseo release.
+
+          Source for this exact release: https://github.com/${GITHUB_REPOSITORY}/tree/${RELEASE_COMMIT}
+
+          License: https://github.com/${GITHUB_REPOSITORY}/blob/${RELEASE_COMMIT}/LICENSE
+
+          macOS artifacts are ad-hoc signed and are not notarized. Windows artifacts are unsigned.
+          EOF
+
+          args=(
+            release create "$RELEASE_TAG"
+            --repo "$GITHUB_REPOSITORY"
+            --verify-tag
+            --draft
+            --title "HanabiCode $RELEASE_TAG"
+            --notes-file "$notes_file"
+          )
+          if [[ "$RELEASE_PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh "${args[@]}"
+
+  quality:
+    name: Validate tagged source
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Run release quality gate
+        run: npm run release:check
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    needs: [prepare, quality]
+    env:
+      EXPO_PUBLIC_HANABICODE_SOURCE_COMMIT: ${{ needs.prepare.outputs.commit }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Build ad-hoc signed desktop app
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          EP_GH_IGNORE_TIME: "true"
+          PASEO_DESKTOP_SMOKE: "1"
+          PASEO_DESKTOP_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/desktop-smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build:desktop -- \
+            --publish never \
+            --mac \
+            --${{ matrix.arch }} \
+            -c.mac.identity=- \
+            -c.mac.notarize=false \
+            -c.mac.hardenedRuntime=false \
+            -c.publish.releaseType=${{ needs.prepare.outputs.prerelease == 'true' && 'prerelease' || 'release' }} \
+            -c.publish.channel=${{ needs.prepare.outputs.channel }}
+
+      - name: Stage release files
+        env:
+          RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$DESKTOP_PACKAGE_PATH/release"
+          output_dir="$RUNNER_TEMP/hanabicode-macos-${{ matrix.arch }}"
+          mkdir -p "$output_dir"
+          find "$source_dir" -maxdepth 1 -type f \
+            \( -name '*.dmg' -o -name '*.zip' -o -name '*.blockmap' -o -name "$RELEASE_CHANNEL-mac.yml" \) \
+            -exec cp {} "$output_dir/" \;
+          [[ "$(find "$output_dir" -maxdepth 1 -name '*.dmg' | wc -l | tr -d ' ')" == "1" ]]
+          [[ "$(find "$output_dir" -maxdepth 1 -name '*.zip' | wc -l | tr -d ' ')" == "1" ]]
+          [[ -f "$output_dir/$RELEASE_CHANNEL-mac.yml" ]]
+
+      - name: Upload macOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanabicode-macos-${{ matrix.arch }}
+          path: ${{ runner.temp }}/hanabicode-macos-${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanabicode-macos-${{ matrix.arch }}-smoke
+          path: ${{ runner.temp }}/desktop-smoke
+          if-no-files-found: ignore
+          retention-days: 7
+
+  windows:
+    name: Windows x64 and ARM64
+    needs: [prepare, quality]
+    env:
+      EXPO_PUBLIC_HANABICODE_SOURCE_COMMIT: ${{ needs.prepare.outputs.commit }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Build unsigned desktop app
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          EP_GH_IGNORE_TIME: "true"
+          PASEO_DESKTOP_SMOKE: "1"
+          PASEO_DESKTOP_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/desktop-smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build:desktop -- \
+            --publish never \
+            --win \
+            --x64 \
+            --arm64 \
+            -c.publish.releaseType=${{ needs.prepare.outputs.prerelease == 'true' && 'prerelease' || 'release' }} \
+            -c.publish.channel=${{ needs.prepare.outputs.channel }}
+
+      - name: Stage release files
+        env:
+          RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$DESKTOP_PACKAGE_PATH/release"
+          output_dir="$RUNNER_TEMP/hanabicode-windows"
+          mkdir -p "$output_dir"
+          find "$source_dir" -maxdepth 1 -type f \
+            \( -name '*.exe' -o -name '*.zip' -o -name '*.blockmap' -o -name "$RELEASE_CHANNEL.yml" \) \
+            -exec cp {} "$output_dir/" \;
+          [[ "$(find "$output_dir" -maxdepth 1 -name '*.exe' | wc -l | tr -d ' ')" == "2" ]]
+          [[ "$(find "$output_dir" -maxdepth 1 -name '*.zip' | wc -l | tr -d ' ')" == "2" ]]
+          [[ -f "$output_dir/$RELEASE_CHANNEL.yml" ]]
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanabicode-windows
+          path: ${{ runner.temp }}/hanabicode-windows
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanabicode-windows-smoke
+          path: ${{ runner.temp }}/desktop-smoke
+          if-no-files-found: ignore
+          retention-days: 7
+
+  android:
+    name: Android signed APK
+    needs: [prepare, quality]
+    env:
+      EXPO_PUBLIC_HANABICODE_SOURCE_COMMIT: ${{ needs.prepare.outputs.commit }}
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Build app dependencies
+        run: npm run build:app-deps
+
+      - name: Generate Android project
+        working-directory: packages/app
+        env:
+          APP_VARIANT: production
+          CI: "1"
+        run: npx expo prebuild --platform android --clean
+
+      - name: Decode signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_CERT_SHA256: ${{ secrets.ANDROID_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_KEYSTORE_BASE64:?ANDROID_KEYSTORE_BASE64 is required}"
+          : "${ANDROID_KEYSTORE_PASSWORD:?ANDROID_KEYSTORE_PASSWORD is required}"
+          : "${ANDROID_KEY_ALIAS:?ANDROID_KEY_ALIAS is required}"
+          : "${ANDROID_KEY_PASSWORD:?ANDROID_KEY_PASSWORD is required}"
+          : "${ANDROID_CERT_SHA256:?ANDROID_CERT_SHA256 is required}"
+          keystore="$RUNNER_TEMP/hanabicode-android-release.p12"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          chmod 600 "$keystore"
+          [[ -s "$keystore" ]]
+
+      - name: Build signed APK
+        working-directory: packages/app/android
+        env:
+          ORG_GRADLE_PROJECT_HANABICODE_UPLOAD_STORE_FILE: ${{ runner.temp }}/hanabicode-android-release.p12
+          ORG_GRADLE_PROJECT_HANABICODE_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_HANABICODE_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_HANABICODE_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg.gradle.parallel=false
+
+      - name: Verify APK signature and certificate
+        env:
+          ANDROID_CERT_SHA256: ${{ secrets.ANDROID_CERT_SHA256 }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="packages/app/android/app/build/outputs/apk/release/app-release.apk"
+          [[ -s "$apk" ]]
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          if [[ -z "$apksigner" ]]; then
+            echo "::error::apksigner was not found under $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+
+          verification="$RUNNER_TEMP/apksigner-verification.txt"
+          "$apksigner" verify --verbose --print-certs "$apk" | tee "$verification"
+          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$verification" | head -n 1)"
+          normalize() { printf '%s' "$1" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]'; }
+          if [[ -z "$actual" || "$(normalize "$actual")" != "$(normalize "$ANDROID_CERT_SHA256")" ]]; then
+            echo "::error::APK signing certificate does not match ANDROID_CERT_SHA256"
+            exit 1
+          fi
+
+          output_dir="$RUNNER_TEMP/hanabicode-android"
+          mkdir -p "$output_dir"
+          cp "$apk" "$output_dir/HanabiCode-v${RELEASE_VERSION}-android.apk"
+
+      - name: Upload Android build
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanabicode-android
+          path: ${{ runner.temp }}/hanabicode-android
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Validate and publish release
+    needs: [prepare, quality, macos, windows, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install manifest tooling
+        run: node scripts/npm-retry.mjs ci --ignore-scripts
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hanabicode-macos-arm64
+          path: release-input/macos-arm64
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hanabicode-macos-x64
+          path: release-input/macos-x64
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hanabicode-windows
+          path: release-input/windows
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hanabicode-android
+          path: release-input/android
+
+      - name: Validate, assemble, and checksum assets
+        env:
+          RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          count() { find "$1" -maxdepth 1 -type f -name "$2" | wc -l | tr -d ' '; }
+          [[ "$(count release-input/macos-arm64 '*.dmg')" == "1" ]]
+          [[ "$(count release-input/macos-arm64 '*.zip')" == "1" ]]
+          [[ "$(count release-input/macos-x64 '*.dmg')" == "1" ]]
+          [[ "$(count release-input/macos-x64 '*.zip')" == "1" ]]
+          [[ "$(count release-input/windows '*.exe')" == "2" ]]
+          [[ "$(count release-input/windows '*.zip')" == "2" ]]
+          [[ "$(count release-input/android '*.apk')" == "1" ]]
+
+          assets="$RUNNER_TEMP/hanabicode-release-assets"
+          mkdir -p "$assets"
+          copy_unique() {
+            local file destination
+            for file in "$1"/*; do
+              [[ -f "$file" ]] || continue
+              [[ "$file" == *.yml ]] && continue
+              destination="$assets/$(basename "$file")"
+              if [[ -e "$destination" ]]; then
+                echo "::error::Duplicate release asset name: $(basename "$file")"
+                exit 1
+              fi
+              cp "$file" "$destination"
+            done
+          }
+          copy_unique release-input/macos-arm64
+          copy_unique release-input/macos-x64
+          copy_unique release-input/windows
+          copy_unique release-input/android
+          cp LICENSE NOTICE "$assets/"
+
+          node scripts/merge-mac-manifest.mjs \
+            "release-input/macos-arm64/$RELEASE_CHANNEL-mac.yml" \
+            "release-input/macos-x64/$RELEASE_CHANNEL-mac.yml" \
+            "$assets/$RELEASE_CHANNEL-mac.yml"
+          cp "release-input/windows/$RELEASE_CHANNEL.yml" "$assets/$RELEASE_CHANNEL.yml"
+          timestamp="$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")"
+          node scripts/stamp-rollout.mjs \
+            --release-date "$timestamp" \
+            --rollout-hours 0 \
+            "$assets/$RELEASE_CHANNEL-mac.yml" \
+            "$assets/$RELEASE_CHANNEL.yml"
+
+          (
+            cd "$assets"
+            sha256sum -- * > "HanabiCode-$RELEASE_TAG-SHA256SUMS.txt"
+          )
+          echo "RELEASE_ASSETS=$assets" >> "$GITHUB_ENV"
+
+      - name: Upload assets and publish draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+          RELEASE_PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets)"
+          if [[ "$(jq -r '.isDraft' <<<"$release_json")" != "true" ]]; then
+            echo "::error::$RELEASE_TAG is no longer a draft"
+            exit 1
+          fi
+
+          while IFS= read -r asset; do
+            [[ -n "$asset" ]] || continue
+            gh release delete-asset "$RELEASE_TAG" "$asset" --yes --repo "$GITHUB_REPOSITORY"
+          done < <(jq -r '.assets[].name' <<<"$release_json")
+
+          shopt -s nullglob
+          files=("$RELEASE_ASSETS"/*)
+          (( ${#files[@]} > 0 ))
+          gh release upload "$RELEASE_TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY"
+
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          cat > "$notes_file" <<EOF
+          HanabiCode is a modified downstream fork of Paseo and is not an official Paseo release.
+
+          Source for this exact release: https://github.com/${GITHUB_REPOSITORY}/tree/${RELEASE_COMMIT}
+
+          License: https://github.com/${GITHUB_REPOSITORY}/blob/${RELEASE_COMMIT}/LICENSE
+
+          Checksums are in HanabiCode-${RELEASE_TAG}-SHA256SUMS.txt.
+
+          macOS artifacts are ad-hoc signed and are not notarized. On first launch, macOS requires a manual Gatekeeper override. Windows artifacts are unsigned and may show an unknown-publisher warning.
+          EOF
+
+          edit_args=(
+            release edit "$RELEASE_TAG"
+            --repo "$GITHUB_REPOSITORY"
+            --title "HanabiCode $RELEASE_TAG"
+            --notes-file "$notes_file"
+            --draft=false
+          )
+          if [[ "$RELEASE_PRERELEASE" == "true" ]]; then
+            edit_args+=(--prerelease --latest=false)
+          else
+            edit_args+=(--prerelease=false --latest)
+          fi
+          gh "${edit_args[@]}"

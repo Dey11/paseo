@@ -2,7 +2,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const pkg = require("./package.json");
 const withAndroidAsyncStorageSize = require("./plugins/with-android-async-storage-size");
+const withAndroidLegalAssets = require("./plugins/with-android-legal-assets");
 const withAndroidProfileable = require("./plugins/with-android-profileable");
+const withAndroidReleaseSigning = require("./plugins/with-android-release-signing");
 const withFdroidAutolinking = require("./plugins/with-fdroid-autolinking");
 const withPasteInput = require("./plugins/with-paste-input");
 const { getNativeReleaseVersion } = require("./native-release-version");
@@ -66,8 +68,8 @@ function resolveSecretFile(params) {
 
 const variants = {
   production: {
-    name: "Paseo",
-    packageId: "sh.paseo",
+    name: "HanabiCode",
+    packageId: "com.dey.hanabicode",
     googleServicesFile: resolveSecretFile({
       envKey: "GOOGLE_SERVICES_FILE_PROD",
       fallbackRelativePath: "./.secrets/google-services.prod.json",
@@ -78,8 +80,8 @@ const variants = {
     }),
   },
   development: {
-    name: "Paseo Debug",
-    packageId: "sh.paseo.debug",
+    name: "HanabiCode Debug",
+    packageId: "com.dey.hanabicode.debug",
     googleServicesFile: resolveSecretFile({
       envKey: "GOOGLE_SERVICES_FILE_DEBUG",
       fallbackRelativePath: "./.secrets/google-services.debug.json",
@@ -97,11 +99,11 @@ const nativeReleaseVersion = getNativeReleaseVersion(pkg.version);
 export default {
   expo: {
     name: variant.name,
-    slug: "voice-mobile",
+    slug: "hanabicode",
     version: nativeReleaseVersion.appVersion,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "paseo",
+    scheme: "hanabicode",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
@@ -142,6 +144,8 @@ export default {
       "expo-router",
       withPasteInput,
       [withAndroidAsyncStorageSize, 64],
+      withAndroidLegalAssets,
+      withAndroidReleaseSigning,
       ...buildProfile.cameraPlugins,
       [
         "expo-splash-screen",
@@ -187,10 +191,6 @@ export default {
       fdroidBuild: isFdroidBuild,
       profileBuild: isProfileBuild,
       router: {},
-      eas: {
-        projectId: "0e7f65ce-0367-46c8-a238-2b65963d235a",
-      },
     },
-    owner: "getpaseo",
   },
 };

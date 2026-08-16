@@ -16,6 +16,7 @@ import { openExternalUrl } from "@/utils/open-external-url";
 import { BookOpen, Copy, RotateCw, TriangleAlert } from "lucide-react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { PaseoLogo } from "@/components/icons/paseo-logo";
+import { ISSUES_URL, SOURCE_REPOSITORY_URL } from "@/constants/product";
 import { Button } from "@/components/ui/button";
 import { getDesktopDaemonLogs, type DesktopDaemonLogs } from "@/desktop/daemon/desktop-daemon";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
@@ -29,8 +30,8 @@ interface StartupSplashScreenProps {
   };
 }
 
-const GITHUB_ISSUE_URL = "https://github.com/getpaseo/paseo/issues/new";
-const DOCS_URL = "https://paseo.sh/docs";
+const GITHUB_ISSUE_URL = ISSUES_URL;
+const DOCS_URL = `${SOURCE_REPOSITORY_URL}/tree/main/docs`;
 
 const LOGO_SIZE = 96;
 const SHIMMER_PEAK_WIDTH = 120;

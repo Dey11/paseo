@@ -55,7 +55,7 @@ export async function runArchiveCommandWithDeps(
     const error: CommandError = {
       code: "MISSING_WORKTREE_NAME",
       message: "Worktree name is required",
-      details: "Usage: paseo worktree archive <name>",
+      details: "Usage: hanabicode worktree archive <name>",
     };
     throw error;
   }
@@ -68,7 +68,7 @@ export async function runArchiveCommandWithDeps(
     const error: CommandError = {
       code: "DAEMON_NOT_RUNNING",
       message: `Cannot connect to daemon at ${host}: ${message}`,
-      details: "Start the daemon with: paseo daemon start",
+      details: "Start the daemon with: hanabicode daemon start",
     };
     throw error;
   }
@@ -95,13 +95,13 @@ export async function runArchiveCommandWithDeps(
       const error: CommandError = {
         code: "WORKTREE_NOT_FOUND",
         message: `Worktree not found: ${nameArg}`,
-        details: 'Use "paseo worktree ls" to list available worktrees',
+        details: 'Use "hanabicode worktree ls" to list available worktrees',
       };
       throw error;
     }
 
     // Archive the worktree. scope:"worktree" archives every active workspace on
-    // the directory and then removes the directory (Paseo-owned gated).
+    // the directory and then removes the directory (HanabiCode-owned gated).
     const response = await client.archivePaseoWorktree({
       worktreePath: worktree.worktreePath,
       scope: "worktree",

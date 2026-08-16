@@ -2,6 +2,15 @@
 export { createPaseoDaemon, type PaseoDaemon, type PaseoDaemonConfig } from "./bootstrap.js";
 export { loadConfig, type CliConfigOverrides } from "./config.js";
 export { resolvePaseoHome } from "./paseo-home.js";
+export {
+  DEFAULT_HANABICODE_APP_BASE_URL,
+  DEFAULT_HANABICODE_HOME,
+  DEFAULT_HANABICODE_LISTEN,
+  DEFAULT_HANABICODE_PORT,
+  DEFAULT_HANABICODE_RELAY_ENDPOINT,
+  PRODUCT_NAME,
+  PRODUCT_REPOSITORY_URL,
+} from "./product.js";
 export { getOrCreateServerId } from "./server-id.js";
 export { createRootLogger, type LogLevel, type LogFormat } from "./logger.js";
 export {

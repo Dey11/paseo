@@ -231,7 +231,7 @@ describe("Hub commands", () => {
               {
                 id: "a50e05af-4f20-4c8f-8dcc-58e5ea360663",
                 slug: "paseo",
-                name: "Paseo",
+                name: "HanabiCode",
               },
             ];
           },
@@ -249,7 +249,7 @@ describe("Hub commands", () => {
         {
           id: "a50e05af-4f20-4c8f-8dcc-58e5ea360663",
           slug: "paseo",
-          name: "Paseo",
+          name: "HanabiCode",
         },
       ],
     });

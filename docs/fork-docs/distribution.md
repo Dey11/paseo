@@ -1,268 +1,93 @@
-# Fork distribution
+# HanabiCode releases
 
-The target is one public GitHub Release in `Dey11/paseo` containing signed macOS builds, Windows installers, and a signed Android APK. GitHub Actions builds each platform from the same source tag. EAS Build is not required.
+HanabiCode publishes one GitHub Release from one existing version tag. `.github/workflows/hanabicode-release.yml` builds every artifact from the exact tagged commit. EAS Build is not used.
 
-Do not create a `v*` tag yet. The current checkout can build installers, but its production identity still points at official Paseo and a `v*` tag starts unrelated upstream publication workflows.
+## Identity
 
-## Target artifacts
+| Concern                            | Value                                 |
+| ---------------------------------- | ------------------------------------- |
+| Product                            | `HanabiCode`                          |
+| Repository                         | `Dey11/hanabicode`                    |
+| Desktop and Android application ID | `com.dey.hanabicode`                  |
+| Development Android application ID | `com.dey.hanabicode.debug`            |
+| URL scheme                         | `hanabicode`                          |
+| Desktop executable and CLI         | `HanabiCode` and `hanabicode`         |
+| Default state                      | `~/.hanabicode`                       |
+| Default daemon listener            | `127.0.0.1:6769`                      |
+| Updater                            | GitHub Releases in `Dey11/hanabicode` |
 
-| Artifact                  | Runner           | Builder                   | Required account                                       |
-| ------------------------- | ---------------- | ------------------------- | ------------------------------------------------------ |
-| macOS ARM64 DMG and ZIP   | `macos-14`       | Electron Builder          | Apple Developer Program for normal Gatekeeper behavior |
-| macOS x64 DMG and ZIP     | `macos-15-intel` | Electron Builder          | Same Apple account and certificate                     |
-| Windows x64 EXE and ZIP   | `windows-latest` | Electron Builder and NSIS | None for unsigned builds; signing is recommended       |
-| Windows ARM64 EXE and ZIP | `windows-latest` | Electron Builder and NSIS | Same as x64                                            |
-| Android universal APK     | `ubuntu-latest`  | Expo Prebuild and Gradle  | None beyond the fork-owned signing key                 |
+The internal `@getpaseo/*` package namespace, `PASEO_*` environment prefix, protocol identifiers, and `.paseo` project metadata remain compatibility APIs. They do not control the installed product identity.
 
-Expo remains the React Native framework and native-project generator. The Android job runs `expo prebuild` and Gradle on GitHub's runner instead of sending the build to EAS. Use [the EAS fallback](android-eas-fallback.md) only if maintaining the direct Gradle job becomes a burden.
+## Artifacts
 
-## Proposed fork identity
+The manual **HanabiCode Release** workflow creates a draft first and publishes it only after all jobs pass:
 
-Finalize these values before making release changes. Changing an application ID or signing identity later breaks update continuity.
+- macOS ARM64 and x64 DMG, ZIP, blockmaps, and merged updater manifest;
+- Windows x64 and ARM64 NSIS installers, ZIPs, blockmaps, and updater manifest;
+- one signed universal Android APK;
+- `HanabiCode-<tag>-SHA256SUMS.txt`.
 
-| Concern                              | Fork value                |
-| ------------------------------------ | ------------------------- |
-| Product name                         | `PaseoDev`                |
-| GitHub repository                    | `Dey11/paseo`             |
-| Desktop application ID               | `com.dey.paseodev`        |
-| Android application ID               | `com.dey.paseodev`        |
-| URL scheme                           | `paseodev`                |
-| Desktop executable and CLI name      | `PaseoDev` and `paseodev` |
-| Electron user-data directory         | Derived from `PaseoDev`   |
-| Embedded local daemon home           | `~/.paseodev`             |
-| Embedded local daemon listen address | `127.0.0.1:6769`          |
-| Updater repository                   | `Dey11/paseo`             |
+macOS builds are ad-hoc signed and not notarized. Windows builds are unsigned. Those choices are suitable for testing on your own devices and produce first-launch operating-system warnings. Add Apple Developer ID signing and notarization later; do not pretend the current artifacts are normally signed.
 
-The VPS daemon can keep using `/home/dev/.paseo-port-forwarding` and `127.0.0.1:6768`; those are deployment values, not client package identity. The official app remains on `~/.paseo` and port `6767`.
+Every app build receives `EXPO_PUBLIC_HANABICODE_SOURCE_COMMIT` from the tag. Settings → About links to that exact source tree and the AGPL license.
 
-## Current readiness
+## One-time GitHub setup
 
-| Area             | Current state                                                | Release work                                                                                         |
-| ---------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Desktop builders | macOS ARM64/x64, Windows x64/ARM64, and Linux x64 jobs exist | Replace official identity and make the release draft-first                                           |
-| Desktop signing  | Workflow accepts Apple secrets                               | Create a fork-owned Developer ID certificate and secrets                                             |
-| Windows signing  | Builds are unsigned                                          | Accept warnings for private testing or add a signing service                                         |
-| Android          | GitHub workflow delegates to EAS                             | Replace it with Prebuild plus Gradle and fork-owned signing                                          |
-| Tag safety       | `v*` triggers several upstream workflows                     | Remove or guard every unrelated tag trigger                                                          |
-| Updates          | Electron Builder points at `getpaseo/paseo`                  | Point manifests and the updater at `Dey11/paseo`                                                     |
-| Fork notice      | Installed app still presents upstream source/community links | Add the source, license, modified-fork notice, and versions required by [licensing.md](licensing.md) |
-
-## Phase 1: isolate release automation
-
-A normal `v*` tag currently starts more than the installer workflows:
-
-- `.github/workflows/desktop-release.yml` builds desktop installers;
-- `.github/workflows/android-apk-release.yml` starts an EAS build;
-- `.github/workflows/deploy-app.yml` deploys the web app to the upstream Cloudflare account shape;
-- `.github/workflows/docker.yml` publishes a container on tag pushes;
-- `.github/workflows/release-notes-sync.yml` can create or mutate the release;
-- publishing the release can start `.github/workflows/deploy-website.yml`.
-
-Make release publishing one owned workflow before pushing a tag:
-
-1. Remove `v*` tag triggers from web, website, Docker, relay, npm, store, and upstream release-note workflows. Keep them manual or delete them from the fork.
-2. Keep CI on branches and pull requests.
-3. Create one `fork-release.yml` orchestrator triggered by `workflow_dispatch` and, after two successful manual releases, by `v*` tags.
-4. Have the orchestrator create one draft release, then run desktop and Android jobs against the exact tag.
-5. Make every uploader use `${{ github.repository }}` and the resolved release tag.
-6. Publish the draft only after every required job succeeds. A failed job must leave a draft rather than a partial public release.
-7. Put signing secrets in a protected GitHub `release` environment. Require approval for the environment if other people can push to the repository.
-
-Do not use `npm run release:patch`, `release:minor`, `release:major`, or their beta variants. Those scripts publish the official `@getpaseo/*` workspace packages before pushing a tag. Installer releases do not need npm publication.
-
-The first two releases should be manual. Run the desktop workflow with `publish=false` when checking packaging without creating release assets.
-
-## Phase 2: make PaseoDev a separate desktop app
-
-Update the product identity in all code that derives paths or validates packaged output. A command-line Electron Builder override is not sufficient.
-
-### Packaging and updater
-
-Update `packages/desktop/electron-builder.yml`:
-
-- `appId`, `productName`, and `executableName`;
-- protocol name and scheme;
-- GitHub publish owner and repository;
-- macOS, Linux, and Windows artifact names;
-- Linux maintainer and vendor;
-- fork-owned icons;
-
-Update `packages/desktop/package.json` and the root `package.json` repository, homepage, author, and description metadata. Internal package names such as `@getpaseo/client` may remain until a separate package-namespace migration; they are bundled workspace dependencies, not the installed application's identity.
-
-### Runtime identity and coexistence
-
-Update `packages/desktop/src/main.ts` so packaged builds use `PaseoDev` and `paseodev`. Keep the Electron Builder protocol scheme and the runtime scheme identical.
-
-Set fork defaults before the daemon manager starts:
-
-- set `PASEO_HOME=~/.paseodev` only when the user has not supplied `PASEO_HOME`;
-- set `PASEO_LISTEN=127.0.0.1:6769` only when the user has not supplied `PASEO_LISTEN`;
-- keep explicit environment overrides working for development and diagnostics.
-
-`app.setName("PaseoDev")` gives the packaged app a separate default Electron `userData` directory and single-instance lock. The fork-specific daemon home and port keep its embedded daemon, PID file, pairing identity, workspaces, and logs separate from official Paseo.
-
-Rename the packaged CLI wrappers and their hardcoded executable paths:
-
-- `packages/desktop/bin/paseo` and `packages/desktop/bin/paseo.cmd`;
-- `packages/desktop/scripts/after-pack.js` and `after-sign.js`;
-- `packages/desktop/e2e/packaged-app-smoke.js`;
-- the desktop assertions in `.github/workflows/nix.yml`.
-
-Search for remaining operational identity before release:
+Create a protected GitHub environment named `release`:
 
 ```bash
-rg -n 'getpaseo/paseo|sh\.paseo|paseo://|relay\.paseo\.sh|app\.paseo\.sh|Paseo' \
-  packages/desktop packages/app packages/server .github docs/fork-docs
+gh api --method PUT repos/Dey11/hanabicode/environments/release
 ```
 
-Not every internal type or translated sentence must be renamed. Replace values that control bundle identity, storage, executable paths, deep links, update destinations, source links, or public branding. Review each hosted-service URL separately; do not replace protocol-compatible defaults blindly.
-
-### macOS signing and notarization
-
-For direct distribution outside the Mac App Store, join the Apple Developer Program and create a `Developer ID Application` certificate for the fork owner. Export the certificate and private key from Keychain Access as a password-protected `.p12` file.
-
-Add these repository or `release` environment secrets:
-
-| Secret                       | Value                               |
-| ---------------------------- | ----------------------------------- |
-| `APPLE_CERTIFICATE`          | Base64-encoded `.p12`               |
-| `APPLE_CERTIFICATE_PASSWORD` | `.p12` password                     |
-| `APPLE_ID`                   | Apple account used for notarization |
-| `APPLE_PASSWORD`             | App-specific Apple password         |
-| `APPLE_TEAM_ID`              | Apple Developer team ID             |
-
-The current desktop workflow maps these to Electron Builder's `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_APP_SPECIFIC_PASSWORD`, and related variables. Keep hardened runtime enabled. Add `-c.forceCodeSigning=true` to the macOS release job after the secrets work so a missing identity fails that job without forcing the deliberately unsigned Windows build to fail. Verify the entitlements and every nested helper and framework, let Electron Builder notarize the app, and assess the downloaded DMG and the app extracted from the ZIP on another Mac.
-
-Apple documents Developer ID and notarization for software distributed outside the App Store: <https://developer.apple.com/support/developer-id/>. Electron Builder's CI variables are documented at <https://www.electron.build/docs/features/code-signing/>.
-
-An unsigned or ad-hoc signed build is acceptable only for development. Gatekeeper requires a manual override and ad-hoc signing mistakes can reproduce the Team ID mismatch seen during the manual PaseoDev experiment.
-
-### Windows signing
-
-GitHub can produce unsigned NSIS installers immediately. Windows will identify them as an unknown publisher and SmartScreen may require **More info → Run anyway**. This is acceptable for your own test machines.
-
-For a normal public installation flow, use a fork-owned Authenticode certificate or Microsoft's Artifact Signing service and expose its credentials only to the protected release environment. Configure Electron Builder to fail the release if signing was expected but did not occur. Signing does not guarantee that a brand-new binary avoids every SmartScreen warning; reputation also affects the decision.
-
-Microsoft's current SmartScreen guidance is at <https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation>. Electron Builder's Windows signing options are at <https://www.electron.build/docs/features/code-signing/code-signing-win/>.
-
-## Phase 3: build Android without EAS
-
-EAS is optional. GitHub's Ubuntu runner can generate, compile, and sign the APK.
-
-### Android identity
-
-Update `packages/app/app.config.js`:
-
-- production name to `PaseoDev`;
-- production package ID to `com.dey.paseodev`;
-- slug and scheme to fork values;
-- icons and splash assets to fork-owned art;
-- remove `owner: "getpaseo"`;
-- remove the official EAS project ID unless the [EAS fallback](android-eas-fallback.md) is configured with a fork-owned project;
-- leave Google service files absent until a fork-owned Firebase project is intentionally added.
-
-Push notifications, Firebase, EAS Update, and Play Store submission are separate features. Pairing, relay connections, terminals, and a directly downloaded APK do not require EAS. Without fork-owned notification credentials, push delivery should be treated as unavailable and tested as such.
-
-### Create and preserve the signing key
-
-Android requires every installable APK to be signed. Create one release key on a trusted machine:
+Generate the Android release key on a trusted machine and keep two offline backups:
 
 ```bash
 keytool -genkeypair -v \
   -storetype PKCS12 \
-  -keystore paseodev-android-release.p12 \
-  -alias paseodev-release \
+  -keystore hanabicode-android-release.p12 \
+  -alias hanabicode-release \
   -keyalg RSA \
   -keysize 2048 \
   -validity 10000
 ```
 
-Back up the keystore and passwords in two secure places. The Android package ID and signing certificate together define update continuity; losing the key prevents a later GitHub APK from updating the installed app.
-
-Add these secrets:
-
-| Secret                      | Value                          |
-| --------------------------- | ------------------------------ |
-| `ANDROID_KEYSTORE_BASE64`   | Base64-encoded PKCS12 keystore |
-| `ANDROID_KEYSTORE_PASSWORD` | Keystore password              |
-| `ANDROID_KEY_ALIAS`         | `paseodev-release`             |
-| `ANDROID_KEY_PASSWORD`      | Key password                   |
-
-With GitHub CLI authenticated to `Dey11/paseo`:
-
-```bash
-base64 < paseodev-android-release.p12 | tr -d '\n' | \
-  gh secret set ANDROID_KEYSTORE_BASE64 --repo Dey11/paseo
-gh secret set ANDROID_KEYSTORE_PASSWORD --repo Dey11/paseo
-gh secret set ANDROID_KEY_ALIAS --repo Dey11/paseo
-gh secret set ANDROID_KEY_PASSWORD --repo Dey11/paseo
-```
-
-The last three commands prompt for the value. Record the public SHA-256 certificate fingerprint:
+Record its SHA-256 certificate fingerprint:
 
 ```bash
 keytool -list -v \
-  -keystore paseodev-android-release.p12 \
-  -alias paseodev-release
+  -keystore hanabicode-android-release.p12 \
+  -alias hanabicode-release
 ```
 
-Android's signing and update model is documented at <https://developer.android.com/studio/publish/app-signing>.
+Set all five secrets on the `release` environment. The workflow accepts a fingerprint with or without colons.
 
-### Generate signing configuration during Prebuild
+```bash
+base64 < hanabicode-android-release.p12 | tr -d '\n' | \
+  gh secret set ANDROID_KEYSTORE_BASE64 --repo Dey11/hanabicode --env release
 
-`packages/app/android` is generated and ignored, so release signing cannot depend on a hand-edited `build.gradle`. Add a fork-owned Expo config plugin that makes the generated Android release build read these Gradle properties:
+gh secret set ANDROID_KEYSTORE_PASSWORD --repo Dey11/hanabicode --env release
+gh secret set ANDROID_KEY_ALIAS --repo Dey11/hanabicode --env release
+gh secret set ANDROID_KEY_PASSWORD --repo Dey11/hanabicode --env release
+gh secret set ANDROID_CERT_SHA256 --repo Dey11/hanabicode --env release
+```
 
-- `PASEODEV_UPLOAD_STORE_FILE`;
-- `PASEODEV_UPLOAD_STORE_PASSWORD`;
-- `PASEODEV_UPLOAD_KEY_ALIAS`;
-- `PASEODEV_UPLOAD_KEY_PASSWORD`.
+The last four commands prompt without echoing the value. Never put the keystore, passwords, certificates, or GitHub secrets in `.env`, Actions YAML, release assets, or Git.
 
-The plugin writes only property references and the `signingConfigs.release` wiring. It must not write secret values. The workflow decodes the keystore to `$RUNNER_TEMP` and supplies the four values through runner-local `~/.gradle/gradle.properties` or `ORG_GRADLE_PROJECT_*` environment variables. Ensure logs never print the properties.
+The Android config plugin writes only Gradle property references. GitHub decodes the keystore into the runner's temporary directory and injects the four signing properties for that job. `apksigner` verifies both the APK and its expected public certificate before upload.
 
-### Replace the EAS workflow
+## Cut a release
 
-Replace `.github/workflows/android-apk-release.yml` with an Ubuntu job that:
-
-1. checks out the exact release tag with full history;
-2. sets up Node 22, Java 21, and the Android SDK;
-3. installs the lockfile with `npm ci`;
-4. runs `npm run build:app-deps`;
-5. runs `APP_VARIANT=production npx expo prebuild --platform android --clean --non-interactive` from `packages/app`;
-6. decodes the keystore into `$RUNNER_TEMP` and supplies signing properties;
-7. runs `./gradlew :app:assembleRelease --no-daemon --max-workers=1 -Dorg.gradle.parallel=false` from `packages/app/android`;
-8. verifies the APK with `apksigner verify --verbose --print-certs` and compares the SHA-256 fingerprint with the recorded certificate;
-9. renames the file to `PaseoDev-<version>-android.apk`;
-10. uploads it as a workflow artifact and to the same draft GitHub Release as the desktop jobs.
-
-The repository's [source-only Android path](../android.md#f-droid--source-only-android-builds) already proves that Prebuild and Gradle can compile the app. The release job should use the normal production profile unless you intentionally want the F-Droid feature reductions. Expo's local build overview is at <https://docs.expo.dev/guides/local-app-overview/>.
-
-Build an AAB with `:app:bundleRelease` only when publishing to Google Play. The direct-download GitHub artifact is the APK.
-
-## Phase 4: make releases atomic and reproducible
-
-The release workflow should use this sequence:
-
-1. Validate that the tag version matches the repository package versions.
-2. Create a draft GitHub Release named `PaseoDev <tag>`.
-3. Build macOS, Windows, and Android in parallel from that tag.
-4. Run the existing packaged desktop smoke checks and Android signature verification.
-5. Upload installers, Electron update manifests, and SHA-256 checksums.
-6. Add release notes that identify the modified fork and link the exact source tag, `LICENSE`, and build workflow.
-7. Confirm the expected artifact set in a final job.
-8. Publish the draft only if all required jobs succeeded.
-
-Keep the GitHub workflow token at `contents: read` by default and grant `contents: write` only to jobs that create or upload the release. Pin third-party actions to reviewed versions or commit SHAs before treating signing secrets as production credentials.
-
-## Version and release commands
-
-After workflow isolation, identity changes, signing, and manual artifact tests are complete:
+Start from a clean, reviewed branch. The version command updates every workspace, creates a release commit, and tags it.
 
 ```bash
 git switch main
 git pull --ff-only
 
-# Choose patch or minor. This updates every workspace, commits, and creates v<version>.
-npm run version:all:minor
+npm run release:check
+
+# Pick exactly one.
+npm run version:all:patch
+# npm run version:all:minor
 
 git show --stat --oneline HEAD
 git tag --points-at HEAD
@@ -270,65 +95,88 @@ git push origin main
 git push origin "$(git tag --points-at HEAD)"
 ```
 
-For the first release, keep the tag trigger disabled and dispatch the workflow manually against the existing tag. Enable automatic `v*` releases only after the manual path works twice.
+Dispatch the manual workflow with that existing tag:
 
-Never move or reuse a published tag. If a build is wrong, fix it and cut a new version. Keep package versions, Android `versionCode`, desktop updater manifests, and the Git tag monotonic.
+```bash
+gh workflow run hanabicode-release.yml \
+  --repo Dey11/hanabicode \
+  -f tag="$(git tag --points-at HEAD)"
 
-## First-release acceptance test
+gh run watch --repo Dey11/hanabicode
+```
 
-GitHub producing a file proves packaging, not installation.
+Do not move or reuse a tag. Fix a failed release in a new commit and cut a new version. The workflow leaves a draft when any platform fails, so a partial release is never presented as complete.
+
+Root scripts that publish the upstream `@getpaseo/*` npm namespace are intentionally unavailable in HanabiCode. A GitHub installer release does not require npm publication.
+
+## Install and verify
 
 ### macOS
 
-1. Download the ARM64 DMG from the GitHub Release on the M4 Mac.
-2. Drag `PaseoDev.app` into Applications and launch it from Finder, not Terminal.
-3. Run `codesign --verify --deep --strict --verbose=2 /Applications/PaseoDev.app`.
-4. Run `spctl --assess --type execute --verbose=4 /Applications/PaseoDev.app`.
-5. Confirm official Paseo and PaseoDev can run together with different user data and daemon homes.
-6. Pair PaseoDev with the fork daemon on the VPS and test port forwarding, terminal traffic, reconnect, and app relaunch.
-7. Install the next version over it and test the fork updater.
+Download the DMG matching the Mac CPU and drag HanabiCode into Applications. Because this first release is not notarized, right-click HanabiCode and choose **Open**. If macOS still blocks it, use **System Settings → Privacy & Security → Open Anyway** for that exact app.
+
+Verify the ad-hoc signature:
+
+```bash
+codesign --verify --deep --strict --verbose=2 /Applications/HanabiCode.app
+```
+
+Gatekeeper assessment is expected to reject an unnotarized build. After Apple signing is added, `spctl --assess --type execute --verbose=4 /Applications/HanabiCode.app` must pass on a clean Mac.
+
+Launch HanabiCode from Finder. It owns its own bundle ID, user-data directory, `~/.hanabicode` daemon home, port `6769`, scheme, and single-instance lock, so it can run beside official Paseo. Pair it with the HanabiCode daemon and test agent control, terminal traffic, port forwarding, reconnect, app restart, and installation of the next HanabiCode version.
 
 ### Windows
 
-1. Test x64 on an x64 Windows machine and ARM64 on Windows ARM64.
-2. Install from the NSIS EXE, launch from the Start menu, and confirm the publisher state matches the signing decision.
-3. Confirm the installed CLI wrapper finds the renamed executable.
-4. Pair with the VPS and repeat the desktop workflow checks.
-5. Install the next release over the first one.
+Install the EXE matching the machine architecture. Windows will show **Unknown publisher** and may require **More info → Run anyway**. Confirm Start menu launch, the bundled `hanabicode` CLI, pairing, port forwarding, reconnect, and upgrade to the next version without losing state.
 
 ### Android
 
-1. Download the APK from the GitHub Release.
-2. Verify the certificate fingerprint with `apksigner`.
-3. Install it on a clean device and confirm it coexists with official Paseo.
-4. Pair it with the fork daemon and test agent, terminal, reconnect, and background/resume behavior.
-5. Install the next APK over it without uninstalling and confirm app data remains.
+Allow installation from the browser or file manager used to download the APK, then install it. Verify the downloaded certificate when Android SDK build tools are available:
 
-## Optional accounts and costs
+```bash
+apksigner verify --verbose --print-certs HanabiCode-v*-android.apk
+```
 
-- Apple Developer Program membership is required for a normal signed and notarized macOS download.
-- Windows signing is optional for a working EXE but recommended for public distribution.
-- EAS is not required for APK generation.
-- Google Play is not required for GitHub APK downloads.
-- Firebase is needed only for fork-owned notification delivery and related Google services.
-- GitHub-hosted runner usage depends on repository visibility and account plan; macOS minutes are the expensive part of this matrix.
+Confirm the printed SHA-256 fingerprint matches the backed-up release key. Test pairing, terminal traffic, reconnect, background/resume, and installing the next signed APK over the first without uninstalling. Losing the signing key prevents future APKs from updating existing installs.
 
-Model-provider subscriptions remain on the VPS. Do not embed Codex, Claude, GitHub, relay, Apple, Android, or signing credentials in any installer.
+## Apple signing later
 
-There is no release `.env` file to commit. GitHub injects release secrets into individual jobs, the VPS keeps its own service environment, and local overrides stay outside Git. Use `.env.example` only for documented non-secret configuration if a future workflow needs it.
+Join the Apple Developer Program, create a **Developer ID Application** certificate, export the certificate and private key as a password-protected PKCS#12 file, and create notarization credentials. Store them only in the protected `release` environment. Then update the macOS job to require signing, hardened runtime, and notarization, and remove the release warning only after both architectures pass installation checks on clean Macs.
+
+The likely secrets are `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. Follow the current Electron Builder and Apple notarization documentation when implementing this because their credential flows change.
+
+## Windows signing later
+
+Use a HanabiCode-owned Authenticode certificate or a managed Windows signing service. Keep its credentials in the protected environment and make the workflow fail if signing is expected but absent. A valid signature identifies the publisher; SmartScreen reputation may still take time to build.
+
+## Local source build
+
+Use the repository's normal prerequisites and commands:
+
+```bash
+npm ci
+npm run build:server
+npm run build:app-deps
+```
+
+Desktop packaging is platform-native: build macOS artifacts on macOS and Windows artifacts on Windows. Android needs Java 21 and the Android SDK. GitHub Actions is the supported cross-platform release builder.
+
+Use `.env.example` and `packages/server/.env.example` only as templates for HanabiCode runtime configuration. The inherited `PASEO_*` prefix is deliberate. Do not commit a populated `.env`.
 
 ## Release gate
 
-Do not publish the first non-test tag until all of these are true:
+Before publishing the first release:
 
-- [ ] Product name, application IDs, scheme, icons, executable names, and local storage are fork-owned.
-- [ ] Official Paseo and PaseoDev run side by side.
-- [ ] Updater manifests point only at `Dey11/paseo`.
-- [ ] Unrelated `v*` workflows cannot deploy or publish upstream-shaped resources.
-- [ ] The Android signing key is backed up and GitHub produces a verified signed APK without EAS.
-- [ ] macOS signing and notarization pass on both architectures.
-- [ ] The Windows signing decision is documented and tested.
-- [ ] Release creation is draft-first and fails closed when an artifact is missing.
-- [ ] The installed app exposes the source, license, modified-fork notice, client version, and daemon version.
-- [ ] Release notes link the exact source tag and license.
-- [ ] No secret, certificate private key, keystore, `.env`, or VPS credential is tracked by Git.
+- Replace upstream Paseo logo/icon assets or obtain permission to use them. The release pipeline deliberately keeps the existing assets until HanabiCode has its own artwork; the AGPL copyright license does not grant trademark rights.
+- Back up the Android signing key and configure all five protected secrets.
+- Confirm HanabiCode and official Paseo run together without shared state or ports.
+- Confirm updater URLs and release notes point only at `Dey11/hanabicode`.
+- Confirm no tag-triggered workflow deploys to official Paseo, Expo, Cloudflare, npm, or release targets.
+- Confirm macOS and Windows warnings match the documented unsigned policy.
+- Confirm Android signature verification and upgrade continuity.
+- Confirm About exposes the exact source, license, fork notice, app version, and daemon version.
+- Confirm release assets include checksums, `LICENSE`, and `NOTICE` through the packaged applications.
+
+## EAS fallback
+
+EAS is not part of the HanabiCode release path. If the direct Gradle workflow becomes too expensive to maintain, create a new fork-owned Expo account and project, restore a fork-owned `eas.json`, and use new credentials. Never restore the official Expo owner, project ID, update channel, or store credentials. See [Android EAS fallback](android-eas-fallback.md).

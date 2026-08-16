@@ -23,7 +23,7 @@ describe("daemon reload output", () => {
         "Warning: These changes require a daemon restart:",
         "  daemon.listen",
         "",
-        "Run: paseo daemon restart",
+        "Run: hanabicode daemon restart",
         "",
         "Warning: These settings are controlled by daemon launch overrides:",
         "  app.baseUrl",

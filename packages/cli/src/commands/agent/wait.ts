@@ -95,8 +95,8 @@ function buildWaitResult(args: {
 
   if (state.status === "timeout") {
     const timeoutMessage = timeoutLabel
-      ? `Agent did not finish within ${timeoutLabel}. Run \`paseo wait ${resolvedAgentId}\` again to keep waiting.`
-      : `Agent wait timed out. Run \`paseo wait ${resolvedAgentId}\` again to keep waiting.`;
+      ? `Agent did not finish within ${timeoutLabel}. Run \`hanabicode wait ${resolvedAgentId}\` again to keep waiting.`
+      : `Agent wait timed out. Run \`hanabicode wait ${resolvedAgentId}\` again to keep waiting.`;
     return {
       agentId: resolvedAgentId,
       status: "timeout",
@@ -162,7 +162,7 @@ export async function runWaitCommand(
     const error: CommandError = {
       code: "DAEMON_NOT_RUNNING",
       message: `Cannot connect to daemon at ${host}: ${message}`,
-      details: "Start the daemon with: paseo daemon start",
+      details: "Start the daemon with: hanabicode daemon start",
     };
     throw error;
   }

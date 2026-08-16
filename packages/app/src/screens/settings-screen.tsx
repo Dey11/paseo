@@ -115,6 +115,7 @@ import ProjectsScreen from "@/screens/projects-screen";
 import ProjectSettingsScreen from "@/screens/project-settings-screen";
 import { SETTINGS_DESKTOP_SIDEBAR_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
 import { isNative } from "@/constants/platform";
+import { SOURCE_COMMIT } from "@/constants/product";
 import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
 import {
   type EnableBuiltInDaemonOption,
@@ -571,6 +572,27 @@ function AboutSection({ appVersion, appVersionText, isDesktopApp }: AboutSection
             <Text style={styles.aboutValue}>{appVersionText}</Text>
           </View>
           {isDesktopApp ? <DesktopAppUpdateRow /> : null}
+          <View style={[settingsStyles.row, settingsStyles.rowBorder]}>
+            <View style={settingsStyles.rowContent}>
+              <Text style={settingsStyles.rowTitle}>Modified open-source fork</Text>
+              <Text style={settingsStyles.rowHint}>
+                HanabiCode is a modified fork of Paseo. It is distributed under the GNU AGPL and is
+                not endorsed by the upstream project.
+              </Text>
+            </View>
+            {SOURCE_COMMIT ? (
+              <Text style={styles.aboutValue}>{SOURCE_COMMIT.slice(0, 12)}</Text>
+            ) : null}
+          </View>
+          <View style={[settingsStyles.row, settingsStyles.rowBorder]}>
+            <View style={settingsStyles.rowContent}>
+              <Text style={settingsStyles.rowTitle}>Your rights</Text>
+              <Text style={settingsStyles.rowHint}>
+                Source is available for this build. You may inspect, modify, and redistribute it
+                under the AGPL. HanabiCode comes without warranty.
+              </Text>
+            </View>
+          </View>
         </View>
       </SettingsSection>
       <ConnectedHostsSection clientVersion={appVersion} />

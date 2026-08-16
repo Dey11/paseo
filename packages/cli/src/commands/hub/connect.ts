@@ -49,8 +49,8 @@ export function addHubConnectCommand(parent: Command, dependencies: HubConnectDe
     addHubResolutionHelp(
       parent
         .command("connect")
-        .description("Enroll this daemon with a Paseo Hub")
-        .argument("[origin]", "Paseo Hub origin")
+        .description("Enroll this daemon with a HanabiCode Hub")
+        .argument("[origin]", "HanabiCode Hub origin")
         .option("--api-key <secret>", "Organization API key"),
     ),
   ).action(

@@ -28,7 +28,7 @@ describe("passthrough CLI", () => {
   it("returns null when no CLI args are provided", () => {
     expect(
       parsePassthroughCliArgs({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo"],
+        argv: ["/Applications/HanabiCode.app/Contents/MacOS/HanabiCode"],
         isDefaultApp: false,
         forceCli: false,
       }),
@@ -38,7 +38,7 @@ describe("passthrough CLI", () => {
   it("ignores macOS GUI launch arguments", () => {
     expect(
       parsePassthroughCliArgs({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo", "-psn_0_12345"],
+        argv: ["/Applications/HanabiCode.app/Contents/MacOS/HanabiCode", "-psn_0_12345"],
         isDefaultApp: false,
         forceCli: false,
       }),
@@ -95,7 +95,7 @@ describe("passthrough CLI", () => {
   it("preserves CLI flags for direct app invocations", () => {
     expect(
       parsePassthroughCliArgs({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo", "--version"],
+        argv: ["/Applications/HanabiCode.app/Contents/MacOS/HanabiCode", "--version"],
         isDefaultApp: false,
         forceCli: false,
       }),
@@ -105,7 +105,11 @@ describe("passthrough CLI", () => {
   it("passes --open-project through as a normal CLI arg", () => {
     expect(
       parsePassthroughCliArgs({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo", "--open-project", "/tmp/project"],
+        argv: [
+          "/Applications/HanabiCode.app/Contents/MacOS/HanabiCode",
+          "--open-project",
+          "/tmp/project",
+        ],
         isDefaultApp: false,
         forceCli: false,
       }),
@@ -115,7 +119,7 @@ describe("passthrough CLI", () => {
   it("forces CLI mode for shim launches even without args", () => {
     expect(
       parsePassthroughCliArgs({
-        argv: ["/Applications/Paseo.app/Contents/MacOS/Paseo"],
+        argv: ["/Applications/HanabiCode.app/Contents/MacOS/HanabiCode"],
         isDefaultApp: false,
         forceCli: true,
       }),
@@ -128,7 +132,7 @@ describe("passthrough CLI", () => {
 
     expect(
       parsePassthroughCliArgsFromArgv([
-        "/Applications/Paseo.app/Contents/MacOS/Paseo",
+        "/Applications/HanabiCode.app/Contents/MacOS/HanabiCode",
         "daemon",
         "set-password",
       ]),

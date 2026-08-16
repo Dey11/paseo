@@ -1,21 +1,21 @@
-# Minimal Paseo daemon + web UI deployment.
+# Minimal HanabiCode daemon + web UI deployment.
 #
-# Open http://localhost:6767 after `docker compose up -d`.
+# Open http://localhost:6769 after `docker compose up -d`.
 # For any network-reachable deployment, change PASEO_PASSWORD first.
 services:
-  paseo:
-    image: ghcr.io/getpaseo/paseo:latest
-    container_name: paseo
+  hanabicode:
+    image: ghcr.io/dey11/hanabicode:latest
+    container_name: hanabicode
     restart: unless-stopped
     ports:
-      - "6767:6767"
+      - "6769:6769"
     environment:
       PASEO_PASSWORD: "change-me"
       # Add DNS names you use to reach this container. IPs and localhost are
       # already allowed by default.
-      # PASEO_HOSTNAMES: "paseo.example.com,.lan"
+      # PASEO_HOSTNAMES: "hanabicode.example.com,.lan"
     volumes:
       # Persistent daemon state and agent credentials/config.
-      - ./paseo-home:/home/paseo
-      # Code visible to Paseo and the agents it launches.
+      - ./hanabicode-home:/home/hanabicode
+      # Code visible to HanabiCode and the agents it launches.
       - ./workspace:/workspace

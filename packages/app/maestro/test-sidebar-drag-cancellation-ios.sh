@@ -11,7 +11,7 @@ RELAY_EXPORTS="$REPO_ROOT/node_modules/@getpaseo/relay/dist/e2ee.js"
 FIXTURE_ROOT=""
 PROJECT_IDS_FILE="$OUT_DIR/project-ids.json"
 
-export PASEO_MAESTRO_APP_ID="${PASEO_MAESTRO_APP_ID:-sh.paseo.debug}"
+export PASEO_MAESTRO_APP_ID="${PASEO_MAESTRO_APP_ID:-com.dey.hanabicode.debug}"
 export PASEO_MAESTRO_DIRECT_ENDPOINT="${PASEO_MAESTRO_DIRECT_ENDPOINT:-127.0.0.1:6767}"
 export PASEO_MAESTRO_DAEMON_WS_URL="${PASEO_MAESTRO_DAEMON_WS_URL:-ws://127.0.0.1:6767/ws}"
 export PASEO_MAESTRO_DAEMON_HEALTH_URL="${PASEO_MAESTRO_DAEMON_HEALTH_URL:-http://127.0.0.1:6767/api/health}"
@@ -37,7 +37,7 @@ if [ ! -f "$CLIENT_EXPORTS" ] || [ ! -f "$RELAY_EXPORTS" ]; then
 fi
 
 if ! curl --fail --silent --show-error --max-time 3 "$PASEO_MAESTRO_DAEMON_HEALTH_URL" >/dev/null; then
-  echo "Paseo daemon is unavailable at $PASEO_MAESTRO_DAEMON_HEALTH_URL" >&2
+  echo "HanabiCode daemon is unavailable at $PASEO_MAESTRO_DAEMON_HEALTH_URL" >&2
   exit 1
 fi
 
@@ -87,7 +87,7 @@ for project_name in \
   mkdir -p "$project_path"
   git -C "$project_path" init >/dev/null
   git -C "$project_path" checkout -b main >/dev/null 2>&1 || true
-  git -C "$project_path" config user.name "Paseo Maestro"
+  git -C "$project_path" config user.name "HanabiCode Maestro"
   git -C "$project_path" config user.email "maestro@getpaseo.local"
   printf '# Sidebar drag cancellation fixture\n' > "$project_path/README.md"
   git -C "$project_path" add README.md

@@ -24,10 +24,15 @@ import { resolveSpeechConfig } from "./speech/speech-config-resolver.js";
 import type { RequestedSpeechProviders } from "./speech/speech-types.js";
 import { mergeHostnames, parseHostnamesEnv, type HostnamesConfig } from "./hostnames.js";
 import { resolveGitProcessPolicy } from "../utils/git-process-scheduler.js";
+import {
+  DEFAULT_HANABICODE_APP_BASE_URL,
+  DEFAULT_HANABICODE_PORT,
+  DEFAULT_HANABICODE_RELAY_ENDPOINT,
+} from "./product.js";
 
-const DEFAULT_PORT = 6767;
-const DEFAULT_RELAY_ENDPOINT = "relay.paseo.sh:443";
-const DEFAULT_APP_BASE_URL = "https://app.paseo.sh";
+const DEFAULT_PORT = DEFAULT_HANABICODE_PORT;
+const DEFAULT_RELAY_ENDPOINT = DEFAULT_HANABICODE_RELAY_ENDPOINT;
+const DEFAULT_APP_BASE_URL = DEFAULT_HANABICODE_APP_BASE_URL;
 const DEFAULT_TRUSTED_PROXIES = ["loopback"];
 
 interface ResolveBundledWebUiDistDirInput {
@@ -289,8 +294,6 @@ function resolveTlsFromEnv(
 
 function resolveRelayConfig(input: ResolveRelayInput): ResolvedRelay {
   const environmentEnabled = parseBooleanEnv(input.env.PASEO_RELAY_ENABLED);
-  // COMPAT(relayOptInDefault): daemons whose startup config omitted this field
-  // retain relay-on removal semantics until 2027-01-31. Modern homes use false.
   const enabled =
     input.cliRelayEnabled ??
     environmentEnabled ??
@@ -306,11 +309,7 @@ function resolveRelayConfig(input: ResolveRelayInput): ResolvedRelay {
     endpoint;
   const useTls =
     input.cliRelayUseTls ??
-    resolveTlsFromEnv(
-      input.env.PASEO_RELAY_USE_TLS,
-      input.persisted.daemon?.relay?.useTls,
-      endpoint === DEFAULT_RELAY_ENDPOINT,
-    );
+    resolveTlsFromEnv(input.env.PASEO_RELAY_USE_TLS, input.persisted.daemon?.relay?.useTls, false);
   const publicUseTls = resolveTlsFromEnv(
     input.env.PASEO_RELAY_PUBLIC_USE_TLS,
     input.persisted.daemon?.relay?.publicUseTls,
@@ -457,7 +456,7 @@ function resolveTrustedProxiesConfig(
 // - host:port (TCP)
 // - /path/to/socket (Unix socket)
 // - unix:///path/to/socket (Unix socket)
-// Default is TCP at 127.0.0.1:6767
+// Default is TCP at 127.0.0.1:6769 so HanabiCode can coexist with Paseo.
 function resolveListenAddress(
   env: NodeJS.ProcessEnv,
   cli: CliConfigOverrides | undefined,
@@ -556,6 +555,9 @@ export function resolveConfigFromPersisted(
   const resolvedOptions = options ?? {};
   const env = resolvedOptions.env ?? process.env;
   const cli = resolvedOptions.cli;
+  // COMPAT(relayOptInDefault): homes created before relay became opt-in may
+  // omit daemon.relay.enabled. Preserve their explicit migration window until
+  // 2027-01-31; fresh HanabiCode homes persist false.
   const relayEnabledFallback =
     resolvedOptions.relayEnabledFallback ?? persisted.daemon?.relay?.enabled === undefined;
 

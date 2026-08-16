@@ -22,7 +22,7 @@ export function formatAppDiagnosticHeader(input: {
   isDesktopApp: boolean;
   hostCount: number;
 }): string {
-  return formatDiagnosticSection("Paseo app diagnostics", [
+  return formatDiagnosticSection("HanabiCode app diagnostics", [
     { label: "Collected at", value: new Date().toISOString() },
     { label: "App version", value: input.appVersion ?? "unknown" },
     { label: "Platform", value: input.platform },
@@ -111,7 +111,7 @@ export function redactAppDiagnosticReport(report: string, hosts: HostProfile[]):
     redacted = redacted.split(value).join("[redacted]");
   }
   return redacted
-    .replace(/paseo:\/\/\S+/gi, "paseo://[redacted]")
+    .replace(/(?:hanabicode|paseo):\/\/\S+/gi, "hanabicode://[redacted]")
     .replace(
       /([?&](?:password|token|secret|key|publicKey|daemonPublicKeyB64)=)[^&\s"']+/gi,
       "$1[redacted]",

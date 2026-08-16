@@ -267,18 +267,18 @@ function printNextSteps(pairingUrl: string | null, paseoHome: string, richUi: bo
   const daemonLogPath = path.join(paseoHome, "daemon.log");
   const nextStepsLines = [
     pairingUrl
-      ? "1. Open Paseo and scan the QR code above, or paste the pairing link."
-      : "1. Open Paseo and connect to your daemon.",
-    "2. Web app: https://app.paseo.sh",
-    "3. Desktop app: https://github.com/getpaseo/paseo/releases/latest",
-    "4. Docs: https://paseo.sh/docs",
-    '5. Example: paseo run --output-schema schema.json "extract fields"',
+      ? "1. Open HanabiCode and scan the QR code above, or paste the pairing link."
+      : "1. Open HanabiCode and connect to your daemon.",
+    "2. Releases: https://github.com/Dey11/hanabicode/releases/latest",
+    "3. Setup: https://github.com/Dey11/hanabicode/blob/main/docs/fork-docs/development.md",
+    "4. Relay: https://github.com/Dey11/hanabicode/blob/main/docs/fork-docs/relay-options.md",
+    '5. Example: hanabicode run --output-schema schema.json "extract fields"',
   ];
   const quickReferenceLines = [
-    "1. paseo --help",
-    "2. paseo ls",
-    '3. paseo run "your prompt"',
-    "4. paseo status",
+    "1. hanabicode --help",
+    "2. hanabicode ls",
+    '3. hanabicode run "your prompt"',
+    "4. hanabicode daemon status",
     `5. Daemon logs: ${daemonLogPath}`,
   ];
 
@@ -304,8 +304,8 @@ export function onboardCommand(): Command {
   return new Command("onboard")
     .description("Run first-time setup, start daemon, and print pairing instructions")
     .option("--listen <listen>", "Listen target (host:port, port, or unix socket path)")
-    .option("--port <port>", "Port to listen on (default: 6767)")
-    .option("--home <path>", "Paseo home directory (default: ~/.paseo)")
+    .option("--port <port>", "Port to listen on (default: 6769)")
+    .option("--home <path>", "HanabiCode home directory (default: ~/.hanabicode)")
     .option("--relay", "Enable relay connection without prompting")
     .option("--no-relay", "Disable relay connection")
     .option("--no-mcp", "Disable the Agent MCP HTTP endpoint")
@@ -423,7 +423,7 @@ async function waitForDaemonReadyWithUi(args: {
 export async function runOnboard(options: OnboardOptions): Promise<void> {
   const richUi = process.stdin.isTTY && process.stdout.isTTY;
   if (richUi) {
-    intro("Welcome to Paseo");
+    intro("Welcome to HanabiCode");
   }
 
   if (options.listen && options.port) {
@@ -442,7 +442,7 @@ export async function runOnboard(options: OnboardOptions): Promise<void> {
 
   const paseoHome = resolveLocalPaseoHome(options.home);
   if (richUi) {
-    renderNote(paseoHome, "Paseo home");
+    renderNote(paseoHome, "HanabiCode home");
   }
 
   const voiceEnabled = await resolveAndPersistVoice(paseoHome, options);
@@ -462,7 +462,7 @@ export async function runOnboard(options: OnboardOptions): Promise<void> {
   if (options.relay === false) {
     log.message("Relay pairing skipped because --no-relay was provided.");
     printNextSteps(null, paseoHome, richUi);
-    if (richUi) outro("Paseo daemon is running.");
+    if (richUi) outro("HanabiCode daemon is running.");
     return;
   }
 
@@ -476,7 +476,7 @@ export async function runOnboard(options: OnboardOptions): Promise<void> {
     if (!shouldEnable) {
       printDirectConnectionGuidance();
       printNextSteps(null, paseoHome, richUi);
-      if (richUi) outro("Paseo daemon is running.");
+      if (richUi) outro("HanabiCode daemon is running.");
       return;
     }
     pairing = await resolveLocalPairingOffer({ paseoHome, enableRelay: true });
@@ -487,7 +487,7 @@ export async function runOnboard(options: OnboardOptions): Promise<void> {
     log.warn("Relay pairing URL is unavailable for this daemon configuration.");
     printNextSteps(null, paseoHome, richUi);
     if (richUi) {
-      outro("Paseo daemon is running.");
+      outro("HanabiCode daemon is running.");
     }
     return;
   }
@@ -501,6 +501,6 @@ export async function runOnboard(options: OnboardOptions): Promise<void> {
   );
   printNextSteps(pairing.url, paseoHome, richUi);
   if (richUi) {
-    outro("Paseo is ready!");
+    outro("HanabiCode is ready!");
   }
 }

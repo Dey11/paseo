@@ -1,0 +1,18 @@
+HanabiCode
+==========
+
+HanabiCode is a modified fork of Paseo (https://github.com/getpaseo/paseo).
+It is not endorsed by or affiliated with the Paseo project or its maintainers.
+
+Original work copyright (C) Paseo contributors.
+HanabiCode modifications copyright (C) 2026 Dey11 and HanabiCode contributors.
+
+The combined work is distributed under the GNU Affero General Public License,
+version 3 or (at your option) any later version. See LICENSE for the complete
+terms, including the right to inspect, modify, and redistribute the source.
+
+Corresponding source for HanabiCode releases is published at:
+https://github.com/Dey11/hanabicode
+
+Keep this notice, the LICENSE file, and upstream copyright notices with copies
+of HanabiCode. The HanabiCode name is separate from the software license.

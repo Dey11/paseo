@@ -29,6 +29,7 @@ import type {
   DesktopPortForwardingSnapshot,
   WorkspacePortProtocol,
 } from "./types";
+import { PortErrorAlert } from "./port-error-alert";
 
 interface PortsPaneProps {
   active: boolean;
@@ -257,9 +258,12 @@ function usePortWatch(input: {
   workspaceId: string | null | undefined;
 }) {
   const { t } = useTranslation();
-  const toast = useToast();
   const [snapshot, setSnapshot] = useState<DesktopPortForwardingSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
+  const dismissError = useCallback(() => setError(null), []);
 
   useEffect(() => {
     const { active, forwardingSupported, lease, serverId, workspaceId } = input;
@@ -277,20 +281,21 @@ function usePortWatch(input: {
       }
     };
 
+    setError(null);
     setLoading(true);
     const startWatch = async () => {
       try {
         const cleanup = await onStatus(handleStatus);
         if (cancelled) cleanup();
         else unsubscribe = cleanup;
-      } catch {
-        // The initial snapshot still makes the pane usable if event setup fails.
+      } catch (watchError) {
+        if (!cancelled) setError(messageFromError(watchError, t("workspace.ports.errors.watch")));
       }
       try {
         const next = await watch({ lease, workspaceId });
         if (!cancelled) setSnapshot(next);
-      } catch (error) {
-        if (!cancelled) toast.error(messageFromError(error, t("workspace.ports.errors.watch")));
+      } catch (watchError) {
+        if (!cancelled) setError(messageFromError(watchError, t("workspace.ports.errors.watch")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -304,13 +309,13 @@ function usePortWatch(input: {
         .unwatch?.({ serverId, connectionId: lease.connectionId, workspaceId })
         .catch(() => undefined);
     };
-  }, [input, t, toast]);
+  }, [input, retryVersion, t]);
 
   const scopedSnapshot = selectWorkspacePortSnapshot(snapshot, {
     serverId: input.serverId,
     workspaceId: input.workspaceId,
   });
-  return { loading, setSnapshot, snapshot: scopedSnapshot };
+  return { dismissError, error, loading, retry, setSnapshot, snapshot: scopedSnapshot };
 }
 
 export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
@@ -334,10 +339,19 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
     () => ({ active, forwardingSupported, lease, serverId, workspaceId }),
     [active, forwardingSupported, lease, serverId, workspaceId],
   );
-  const { loading, setSnapshot, snapshot } = usePortWatch(watchInput);
+  const {
+    dismissError: dismissWatchError,
+    error: watchError,
+    loading,
+    retry: retryWatch,
+    setSnapshot,
+    snapshot,
+  } = usePortWatch(watchInput);
   const [manualPort, setManualPort] = useState("");
   const [manualProtocol, setManualProtocol] = useState<WorkspacePortProtocol>("http");
   const [pendingAction, setPendingAction] = useState<PendingPortAction | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const dismissActionError = useCallback(() => setActionError(null), []);
   const pendingPort =
     pendingAction?.serverId === serverId && pendingAction.workspaceId === workspaceId
       ? pendingAction.remotePort
@@ -352,10 +366,11 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
       if (!lease || !workspaceId) return;
       const create = getDesktopHost()?.ports?.create;
       if (!create) {
-        toast.error(t("workspace.ports.errors.desktopUpdate"));
+        setActionError(t("workspace.ports.errors.desktopUpdate"));
         return;
       }
       const action = { serverId, workspaceId, remotePort };
+      setActionError(null);
       setPendingAction(action);
       try {
         const next = await create({
@@ -369,12 +384,12 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
         setSnapshot(next);
         setManualPort("");
       } catch (error) {
-        toast.error(messageFromError(error, t("workspace.ports.errors.forward")));
+        setActionError(messageFromError(error, t("workspace.ports.errors.forward")));
       } finally {
         setPendingAction((current) => (current === action ? null : current));
       }
     },
-    [lease, serverId, setSnapshot, t, toast, workspaceId],
+    [lease, serverId, setSnapshot, t, workspaceId],
   );
 
   const stopForward = useCallback(
@@ -382,25 +397,27 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
       const stop = getDesktopHost()?.ports?.stop;
       if (!stop) return;
       const action = { serverId, workspaceId: forward.workspaceId, remotePort: forward.remotePort };
+      setActionError(null);
       setPendingAction(action);
       try {
         setSnapshot(await stop({ serverId, forwardId: forward.forwardId }));
       } catch (error) {
-        toast.error(messageFromError(error, t("workspace.ports.errors.stop")));
+        setActionError(messageFromError(error, t("workspace.ports.errors.stop")));
       } finally {
         setPendingAction((current) => (current === action ? null : current));
       }
     },
-    [serverId, setSnapshot, t, toast],
+    [serverId, setSnapshot, t],
   );
 
   const copyForward = useCallback(
     async (forward: DesktopPortForward) => {
+      setActionError(null);
       try {
         await copyToClipboard(formatForwardUrl(forward));
         toast.copied(t("workspace.ports.endpoint"));
       } catch (error) {
-        toast.error(messageFromError(error, t("workspace.ports.errors.copy")));
+        setActionError(messageFromError(error, t("workspace.ports.errors.copy")));
       }
     },
     [t, toast],
@@ -408,13 +425,14 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
 
   const openForward = useCallback(
     async (forward: DesktopPortForward) => {
+      setActionError(null);
       try {
         await getDesktopHost()?.opener?.openUrl?.(formatForwardUrl(forward));
       } catch (error) {
-        toast.error(messageFromError(error, t("workspace.ports.errors.open")));
+        setActionError(messageFromError(error, t("workspace.ports.errors.open")));
       }
     },
-    [t, toast],
+    [t],
   );
 
   const parsedManualPort = parseManualPort(manualPort);
@@ -477,6 +495,25 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
           />
         </View>
       </View>
+
+      {watchError ? (
+        <PortErrorAlert
+          testID="ports-watch-error"
+          title={t("workspace.ports.errors.watch")}
+          message={watchError}
+          onRetry={retryWatch}
+          onDismiss={dismissWatchError}
+        />
+      ) : null}
+
+      {actionError ? (
+        <PortErrorAlert
+          testID="ports-action-error"
+          title={t("workspace.ports.errors.runtime")}
+          message={actionError}
+          onDismiss={dismissActionError}
+        />
+      ) : null}
 
       <PortNotices
         discoverySupported={discoverySupported}

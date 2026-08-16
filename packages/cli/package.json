@@ -1,9 +1,10 @@
 {
   "name": "@getpaseo/cli",
   "version": "0.4.0",
-  "description": "Paseo CLI - control your AI coding agents from the command line",
+  "private": true,
+  "description": "HanabiCode CLI - control your AI coding agents from the command line",
   "bin": {
-    "paseo": "bin/paseo"
+    "hanabicode": "bin/hanabicode"
   },
   "files": [
     "bin",
@@ -11,9 +12,6 @@
     "!dist/**/*.map"
   ],
   "type": "module",
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "clean": "node ../../scripts/clean-package-dist.mjs",
     "build": "tsc -p tsconfig.json --incremental false",

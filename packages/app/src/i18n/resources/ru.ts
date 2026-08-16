@@ -854,7 +854,7 @@ export const ru: TranslationResources = {
             "Обновление недоступно, поскольку эта ветка уже обновлена ​​до версии{{baseRef}}.",
           mergePrNoGithub: "Объединение PR сейчас недоступно, поскольку GitHub не подключен.",
           archiveNotWorktree:
-            "Архив здесь недоступен, поскольку это рабочее пространство не было создано как рабочее дерево Paseo.",
+            "Архив здесь недоступен, поскольку это рабочее пространство не было создано как рабочее дерево HanabiCode.",
           mergePrNoForge:
             "Объединение {{noun}} сейчас недоступно, поскольку {{brand}} не подключен.",
           mergePrMissing: "Объединение PR недоступно, поскольку еще нет запроса на включение",
@@ -1071,7 +1071,7 @@ export const ru: TranslationResources = {
       discord: "Discord",
       github: "Создать issue в GitHub",
       whatsNew: "Что нового",
-      appName: "Paseo",
+      appName: "HanabiCode",
     },
     sections: {
       sessions: "История",
@@ -1203,7 +1203,7 @@ export const ru: TranslationResources = {
   },
   desktop: {
     quitting: {
-      title: "Выход из Paseo...",
+      title: "Выход из HanabiCode...",
       detail: "Остановка локального демона.",
     },
     daemon: {
@@ -1217,20 +1217,20 @@ export const ru: TranslationResources = {
       },
       management: {
         title: "Управление встроенным демоном",
-        hint: "Позвольте Paseo запустить и остановить встроенный демон.",
+        hint: "Позвольте HanabiCode запустить и остановить встроенный демон.",
         pauseTitle: "Приостановить встроенный демон",
         pauseMessage:
           "Это немедленно остановит встроенный демон. Запущенные агенты и терминалы, подключенные к встроенному демону, будут остановлены.",
         pauseAndStop: "Пауза и остановка",
         registrationFailed:
-          "Built-in daemon started, but Paseo could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
+          "Built-in daemon started, but HanabiCode could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
         pausedStopFailed:
-          "Встроенное управление демоном было приостановлено, но Paseo не смог остановить демон.",
+          "Встроенное управление демоном было приостановлено, но HanabiCode не смог остановить демон.",
         updateFailed: "Невозможно обновить встроенное управление демонами.",
       },
       keepRunning: {
         title: "Продолжать работу демона после выхода",
-        hint: "Daemon продолжает работать, когда вы выходите из Paseo",
+        hint: "Daemon продолжает работать, когда вы выходите из HanabiCode",
       },
       logs: {
         title: "Файл журнала",
@@ -1300,7 +1300,7 @@ export const ru: TranslationResources = {
     },
     rosetta: {
       title: "Загрузите сборку Apple Silicon",
-      runningIntel: "Вы используете сборку Intel для Paseo под Rosetta на Apple Silicon.",
+      runningIntel: "Вы используете сборку Intel для HanabiCode под Rosetta на Apple Silicon.",
       highCpu:
         "Это приводит к высокой загрузке ЦП. Загрузите сборку Apple Silicon, чтобы исправить это.",
       download: "Скачать",
@@ -1345,7 +1345,7 @@ export const ru: TranslationResources = {
         microphone: "Состояние микрофона еще не проверялось.",
       },
       testNotification: {
-        title: "Тест уведомлений Paseo",
+        title: "Тест уведомлений HanabiCode",
         body: "Если вы это видите, уведомления на рабочем столе работают.",
         notDelivered:
           "Уведомление не было доставлено. Проверьте Системные настройки > Уведомления.",
@@ -1355,7 +1355,7 @@ export const ru: TranslationResources = {
     integrations: {
       cli: {
         statusFailed: "Невозможно проверить статус установки CLI.",
-        installFailed: "Невозможно установить PaseoCLI.",
+        installFailed: "Невозможно установить HanabiCodeCLI.",
       },
       skills: {
         statusFailed: "Невозможно проверить статус навыков оркестровки.",
@@ -1367,7 +1367,7 @@ export const ru: TranslationResources = {
     },
   },
   rootError: {
-    title: "В Paseo возникла проблема.",
+    title: "В HanabiCode возникла проблема.",
     body: "Попробуйте снова перезагрузить приложение. Если это повторяется, приложите приведенные ниже подробности к отчету.",
     details: "Подробности",
   },
@@ -1463,7 +1463,7 @@ export const ru: TranslationResources = {
     },
   },
   onboarding: {
-    title: "Добро пожаловать в Paseo",
+    title: "Добро пожаловать в HanabiCode",
     subtitle: "Подключите компьютер, чтобы начать",
     actions: {
       settings: "Настройки",
@@ -1543,7 +1543,7 @@ export const ru: TranslationResources = {
     },
     direct: {
       title: "Прямое подключение",
-      helper: "Введите адрес сервера Paseo.",
+      helper: "Введите адрес сервера HanabiCode.",
       fields: {
         host: "Host",
         port: "Порт",
@@ -1626,15 +1626,15 @@ export const ru: TranslationResources = {
       enableDescription:
         "Реле позволяет подключаться с этого устройства откуда угодно. Трафик сопряжения защищён сквозным шифрованием.",
       relayDocs: "Как работает реле",
-      relayDocsAccessibility: "Прочитать, как работает реле Paseo",
+      relayDocsAccessibility: "Прочитать, как работает реле HanabiCode",
       enableRelay: "Включить реле",
       enablingRelay: "Включение...",
       notNow: "Не сейчас",
       directConnectionHint:
         "Без реле подключайтесь напрямую через TCP, Tailscale или другую VPN. QR-код не создаётся.",
-      updateRequired: "Обновите хост, чтобы включить реле из Paseo Desktop.",
+      updateRequired: "Обновите хост, чтобы включить реле из HanabiCode Desktop.",
       unavailable: "Предложение по сопряжению недоступно.",
-      hint: "Отсканируйте этот код QR с помощью Paseo на своем телефоне или скопируйте ссылку ниже.",
+      hint: "Отсканируйте этот код QR с помощью HanabiCode на своем телефоне или скопируйте ссылку ниже.",
       qrUnavailable: "Код QR недоступен.",
       qrAccessibility: "QR-код сопряжения",
       retry: "Повторить попытку",
@@ -1667,7 +1667,7 @@ export const ru: TranslationResources = {
   serviceUrl: {
     title: "Открыть сервис URL",
     message: "Открыть{{url}}?",
-    inPaseo: "В Paseo",
+    inHanabiCode: "В HanabiCode",
     externalBrowser: "Внешний браузер",
     dontAskAgain: "Не спрашивай больше",
   },
@@ -1766,8 +1766,8 @@ export const ru: TranslationResources = {
       other: "использовано {{count}} других инструментов",
     },
     paseoCalls: {
-      one: "Paseo вызван {{count}} раз",
-      other: "Paseo вызван {{count}} раз",
+      one: "HanabiCode вызван {{count}} раз",
+      other: "HanabiCode вызван {{count}} раз",
     },
     and: "и",
   },
@@ -1846,7 +1846,7 @@ export const ru: TranslationResources = {
       send: "Отправить",
       sending: "Отправка...",
       sentTitle: "Тестовое уведомление отправлено",
-      sentDescription: "Paseo передал уведомление операционной системе.",
+      sentDescription: "HanabiCode передал уведомление операционной системе.",
       sendFailedTitle: "Не удалось отправить тестовое уведомление",
     },
     hostSections: {
@@ -1865,14 +1865,14 @@ export const ru: TranslationResources = {
     metadataGeneration: {
       title: "Создание метаданных",
       description:
-        "Выберите модель, которую Paseo использует для названий рабочих пространств, веток, сообщений коммитов и черновиков pull request",
+        "Выберите модель, которую HanabiCode использует для названий рабочих пространств, веток, сообщений коммитов и черновиков pull request",
       selection: "Выбор модели",
       automatic: "Автоматически",
       preferred: "Вручную",
-      automaticHint: "Paseo выбирает быструю доступную модель",
-      preferredHint: "Выберите модель, которую использует Paseo",
+      automaticHint: "HanabiCode выбирает быструю доступную модель",
+      preferredHint: "Выберите модель, которую использует HanabiCode",
       model: "Модель",
-      fallbackHint: "Если она недоступна, Paseo использует другую доступную модель",
+      fallbackHint: "Если она недоступна, HanabiCode использует другую доступную модель",
       docs: "Документация",
       saveError: "Не удалось обновить создание метаданных",
     },
@@ -1881,7 +1881,7 @@ export const ru: TranslationResources = {
       browserData: {
         title: "Данные браузера",
         siteData: "Файлы cookie и данные сайтов",
-        description: "Вкладки браузера используют общие данные входа и данные сайтов в Paseo.",
+        description: "Вкладки браузера используют общие данные входа и данные сайтов в HanabiCode.",
         clear: "Очистить данные браузера",
         clearing: "Очистка...",
         confirmTitle: "Очистить данные браузера?",
@@ -1906,7 +1906,7 @@ export const ru: TranslationResources = {
         description: "Где открыть URL- адреса запущенных скриптов",
         options: {
           ask: "Просить",
-          inApp: "В Paseo",
+          inApp: "В HanabiCode",
           external: "Внешний браузер",
         },
       },
@@ -1992,7 +1992,7 @@ export const ru: TranslationResources = {
         label: "Обновления приложений",
         readyToInstall: "Готово к установке:{{version}}",
         installTitle: "Установить обновление рабочего стола",
-        installMessage: "Это обновит Paseo на этом компьютере.",
+        installMessage: "Это обновит HanabiCode на этом компьютере.",
         installConfirm: "Установить обновление",
         update: "Обновлять",
         updateTo: "Обновление до{{version}}",
@@ -2137,10 +2137,11 @@ export const ru: TranslationResources = {
         title: "Навыки оркестровки",
         description: "Научите своих агентов организовывать работу через CLI",
         updateAvailable: "Доступно обновление",
-        updateTitle: "Обновить навыки Paseo?",
+        updateTitle: "Обновить навыки HanabiCode?",
         updateFallback: "Синхронизируйте связанные навыки с вашим компьютером.",
-        uninstallTitle: "Удалить навыки Paseo?",
-        uninstallMessage: "Удаляет все навыки оркестровки Paseo из ~/.agents, ~/.claude, ~/.codex.",
+        uninstallTitle: "Удалить навыки HanabiCode?",
+        uninstallMessage:
+          "Удаляет все навыки оркестровки HanabiCode из ~/.agents, ~/.claude, ~/.codex.",
         choose: "Выбрать навыки",
         chooseAll: "Все навыки",
         chooseAllHint: "Держите установленными все входящие навыки, включая добавленные позже.",
@@ -2240,9 +2241,9 @@ export const ru: TranslationResources = {
         title: "оркестровка",
         unavailable: "Подключитесь к этому хосту, чтобы управлять оркестрацией.",
         enableTools: {
-          title: "Включить инструменты Paseo",
+          title: "Включить инструменты HanabiCode",
           hint: "Агенты смогут управлять рабочими деревьями, агентами и расписаниями.",
-          accessibilityLabel: "Инструменты внедрения Paseo",
+          accessibilityLabel: "Инструменты внедрения HanabiCode",
         },
         systemPrompt: {
           title: "Системная подсказка",
@@ -2347,15 +2348,15 @@ export const ru: TranslationResources = {
             "Этот хост не подключен. Подождите, пока он подключится к сети, прежде чем перезапустить.",
           offlineTitle: "Host оффлайн",
           offlineMessage:
-            "Этот хост не в сети.Paseo автоматически повторно подключается — подождите, пока он снова подключится к сети, прежде чем перезапускаться.",
+            "Этот хост не в сети.HanabiCode автоматически повторно подключается — подождите, пока он снова подключится к сети, прежде чем перезапускаться.",
           requestFailedTitle: "Ошибка",
           requestFailedMessage:
-            "Не удалось отправить запрос на перезапуск.Paseo автоматически повторно подключается. Повторите попытку, как только хост окажется в сети.",
+            "Не удалось отправить запрос на перезапуск.HanabiCode автоматически повторно подключается. Повторите попытку, как только хост окажется в сети.",
           dialogFailedMessage: "Невозможно открыть диалоговое окно подтверждения перезапуска.",
         },
         update: {
           desktopManagedHint:
-            "Этот демон управляется Paseo Desktop. Обновите Paseo Desktop на хосте.",
+            "Этот демон управляется HanabiCode Desktop. Обновите HanabiCode Desktop на хосте.",
           title: "Update daemon",
           hint: "Update the daemon to the latest version and restart it",
           confirm: "Update",
@@ -2516,7 +2517,7 @@ export const ru: TranslationResources = {
         newScript: "Новый сценарий",
         editScript: "Изменить{{name}}",
         runAsService: "Запуск как служба",
-        serviceHint: "Paseo контролирует процесс и назначает порт через $PASEO_PORT.",
+        serviceHint: "HanabiCode контролирует процесс и назначает порт через $PASEO_PORT.",
         actions: {
           add: "Добавить скрипт",
           edit: "Редактировать",
@@ -2525,7 +2526,7 @@ export const ru: TranslationResources = {
       },
       metadata: {
         title: "Генерация метаданных",
-        info: "Инструкции для конкретного проекта, внедренные в подсказки ИИ, которые Paseo использует для генерации метаданных. Используйте их для обеспечения соблюдения соглашений вашей команды, таких как наименование ветвей, стиль фиксации или формат PR.",
+        info: "Инструкции для конкретного проекта, внедренные в подсказки ИИ, которые HanabiCode использует для генерации метаданных. Используйте их для обеспечения соблюдения соглашений вашей команды, таких как наименование ветвей, стиль фиксации или формат PR.",
         branchName: "Названия ветвей",
         branchNamePlaceholder: "Префиксные ветки с feat/ или fix/, mb/ для личных веток",
         commitMessage: "Фиксировать сообщения",

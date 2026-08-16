@@ -144,7 +144,7 @@ function providerScaffold(
         environment,
         reply: "slack.reply",
       }),
-      testAction: "Mention `@Paseo have a look` in Slack.",
+      testAction: "Mention `@HanabiCode have a look` in Slack.",
     };
   }
 
@@ -157,7 +157,7 @@ function providerScaffold(
       environment,
       reply: "discord.reply",
     }),
-    testAction: "Mention `@Paseo have a look` in Discord.",
+    testAction: "Mention `@HanabiCode have a look` in Discord.",
   };
 }
 

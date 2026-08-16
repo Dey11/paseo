@@ -181,7 +181,7 @@ export async function runLsCommand(
       code: "DAEMON_NOT_RUNNING",
       message: `Cannot connect to daemon at ${host}: ${message}`,
       details:
-        "Start the daemon with: paseo daemon start\nFor a remote daemon, pass --host <host:port> or set PASEO_HOST.",
+        "Start the daemon with: hanabicode daemon start\nFor a remote daemon, pass --host <host:port> or set PASEO_HOST.",
     };
     throw error;
   }

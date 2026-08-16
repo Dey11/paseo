@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE_HOME="/home/paseo"
+IMAGE_HOME="/home/hanabicode"
 
 : "${HOME:=$IMAGE_HOME}"
-: "${PASEO_HOME:=${HOME}/.paseo}"
-: "${PASEO_LISTEN:=0.0.0.0:6767}"
+: "${PASEO_HOME:=${HOME}/.hanabicode}"
+: "${PASEO_LISTEN:=0.0.0.0:6769}"
 : "${PASEO_WEB_UI_ENABLED:=true}"
 : "${PASEO_LOG_LEVEL:=info}"
 : "${PASEO_LOG_FORMAT:=json}"
@@ -36,7 +36,7 @@ ensure_dir() {
     local owner
     owner="$(stat -c "%u" "$dir")"
     if [[ "$owner" == "0" ]]; then
-      chown paseo:paseo "$dir"
+      chown hanabicode:hanabicode "$dir"
     fi
   fi
 }
@@ -52,27 +52,27 @@ ensure_dir "$XDG_CACHE_HOME"
 
 if [[ "$#" -gt 0 ]]; then
   if [[ "$(id -u)" == "0" ]]; then
-    exec gosu paseo "$@"
+    exec gosu hanabicode "$@"
   fi
   exec "$@"
 fi
 
 if [[ -z "${PASEO_PASSWORD:-}" ]]; then
   {
-    echo "[paseo] WARNING: PASEO_PASSWORD is not set."
-    echo "[paseo] The daemon accepts unauthenticated control connections from any client that can reach it."
-    echo "[paseo] Set PASEO_PASSWORD for any published port or network-reachable deployment."
+    echo "[hanabicode] WARNING: PASEO_PASSWORD is not set."
+    echo "[hanabicode] The daemon accepts unauthenticated control connections from any client that can reach it."
+    echo "[hanabicode] Set PASEO_PASSWORD for any published port or network-reachable deployment."
   } >&2
 fi
 
-if [[ ! -f /etc/paseo-server-entry ]]; then
-  echo "[paseo] FATAL: /etc/paseo-server-entry is missing." >&2
+if [[ ! -f /etc/hanabicode-server-entry ]]; then
+  echo "[hanabicode] FATAL: /etc/hanabicode-server-entry is missing." >&2
   exit 1
 fi
 
-entry="$(cat /etc/paseo-server-entry)"
-echo "[paseo] starting daemon on ${PASEO_LISTEN} with web UI ${PASEO_WEB_UI_ENABLED}"
+entry="$(cat /etc/hanabicode-server-entry)"
+echo "[hanabicode] starting daemon on ${PASEO_LISTEN} with web UI ${PASEO_WEB_UI_ENABLED}"
 if [[ "$(id -u)" == "0" ]]; then
-  exec gosu paseo node "$entry"
+  exec gosu hanabicode node "$entry"
 fi
 exec node "$entry"

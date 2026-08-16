@@ -13,12 +13,15 @@ interface ResolveHubInput {
   credentials: HubCredentialStore;
 }
 
-export const DEFAULT_HUB_ORIGIN = "https://hub.paseo.sh";
-
 export function resolveHubOrigin(input: ResolveHubInput): string {
   const configuredOrigin = input.options.origin ?? input.env.PASEO_HUB_URL;
-  const selectedOrigin =
-    configuredOrigin ?? input.credentials.active()?.origin ?? DEFAULT_HUB_ORIGIN;
+  const selectedOrigin = configuredOrigin ?? input.credentials.active()?.origin;
+  if (selectedOrigin === undefined) {
+    throw new HubCommandError(
+      "HUB_ORIGIN_REQUIRED",
+      "HanabiCode has no hosted Hub default. Pass --hub <url>, set PASEO_HUB_URL, or log in to a self-hosted Hub.",
+    );
+  }
   return normalizeHubOrigin(selectedOrigin);
 }
 
@@ -29,6 +32,6 @@ export function resolveHubCredential(input: ResolveHubInput & { origin: string }
   if (stored !== null) return stored.credential;
   throw new HubCommandError(
     "HUB_API_KEY_REQUIRED",
-    `No stored Hub login matches ${input.origin}. Run \`paseo hub login ${input.origin}\`, pass --api-key <secret>, or set PASEO_HUB_API_KEY.`,
+    `No stored Hub login matches ${input.origin}. Run \`hanabicode hub login ${input.origin}\`, pass --api-key <secret>, or set PASEO_HUB_API_KEY.`,
   );
 }

@@ -4,6 +4,7 @@ import {
   buildDaemonWebSocketUrl,
   buildRelayWebSocketUrl,
   CURRENT_RELAY_PROTOCOL_VERSION,
+  DEFAULT_RELAY_ENDPOINT,
   extractHostPortFromWebSocketUrl,
   normalizeRelayProtocolVersion,
   parseConnectionUri,
@@ -11,6 +12,10 @@ import {
   serializeConnectionUriForStorage,
   shouldUseTlsForDefaultHostedRelay,
 } from "./daemon-endpoints.js";
+
+test("the fork relay default stays local and opt-in", () => {
+  expect(DEFAULT_RELAY_ENDPOINT).toBe("127.0.0.1:4000");
+});
 
 describe("connection URI parsing", () => {
   test("round-trips a tcp host and port", () => {

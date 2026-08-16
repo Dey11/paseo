@@ -1,26 +1,26 @@
-# Paseo Docker Image
+# HanabiCode Docker Image
 
-This directory contains the official Paseo daemon image.
+This directory contains the HanabiCode daemon image, a modified downstream fork of Paseo.
 
 The image runs the daemon headless and serves the bundled web UI from the same
 HTTP origin. Start it, then open the daemon URL in a browser.
 
 ```bash
-docker run -d --name paseo \
-  -p 6767:6767 \
+docker run -d --name hanabicode \
+  -p 6769:6769 \
   -e PASEO_PASSWORD=change-me \
-  -v "$PWD/paseo-home:/home/paseo" \
+  -v "$PWD/hanabicode-home:/home/hanabicode" \
   -v "$PWD:/workspace" \
-  ghcr.io/getpaseo/paseo:latest
+  ghcr.io/dey11/hanabicode:latest
 ```
 
-Then open `http://localhost:6767`.
+Then open `http://localhost:6769`.
 
 The base image intentionally does not bundle agent CLIs. Extend it with the
 agents you use:
 
 ```Dockerfile
-FROM ghcr.io/getpaseo/paseo:latest
+FROM ghcr.io/dey11/hanabicode:latest
 
 USER root
 RUN npm install -g @openai/codex @anthropic-ai/claude-code

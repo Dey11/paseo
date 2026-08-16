@@ -61,7 +61,7 @@ An Android emulator reaches a daemon on its host through `10.0.2.2` or `adb reve
 
 ## VPS workflow
 
-The VPS owns provider execution. Install and authenticate provider CLIs there, not on the client devices merely to satisfy Paseo:
+The VPS owns provider execution. Install and authenticate provider CLIs there, not on the client devices merely to satisfy HanabiCode:
 
 ```bash
 codex login
@@ -94,7 +94,7 @@ npm ci
 npm run dev:desktop
 ```
 
-Pair the development host, open a workspace, and start a service in a Paseo terminal. Open the Explorer and select **Ports** beside **Files**, forward the observed port, and use the displayed `127.0.0.1` endpoint. Automatic discovery requires a Linux daemon; manual forwarding remains available when discovery is unsupported.
+Pair the development host, open a workspace, and start a service in a HanabiCode terminal. Open the Explorer and select **Ports** beside **Files**, forward the observed port, and use the displayed `127.0.0.1` endpoint. Automatic discovery requires a Linux daemon; manual forwarding remains available when discovery is unsupported.
 
 ## Build boundaries
 

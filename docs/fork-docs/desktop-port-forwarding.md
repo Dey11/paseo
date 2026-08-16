@@ -1,10 +1,10 @@
 # Desktop workspace port forwarding
 
-Status: implemented for Electron desktop with a Linux daemon. Automated coverage exercises the binary protocol, real loopback sockets, Linux `/proc` attribution, flow control, reconnect cleanup, IPC validation, and UI state. The official relay's encrypted binary path has a bounded live smoke test, but the complete HTTP, WebSocket, reconnect, and control-responsiveness acceptance proof still requires a macOS packaged-app run before publishing a release.
+Status: implemented for Electron desktop with a Linux daemon. Automated coverage exercises the binary protocol, real loopback sockets, Linux `/proc` attribution, flow control, reconnect cleanup, IPC validation, and UI state. A macOS packaged-development build has been verified manually for HTTP forwarding to the VPS. WebSocket/HMR, relay-loss recovery, and control-responsiveness remain release-gate checks against the configured HanabiCode relay; Windows desktop is untested.
 
 Use the [fork development guide](development.md#desktop-port-forwarding-loop) for local setup. The feature adds no environment variables: it reuses the selected host's existing TCP password or relay pairing offer.
 
-This feature gives Paseo Desktop an SSH `-L`-style path to a service running on the remote daemon host. You start a server in a workspace terminal, open the **Ports** tab in the right sidebar, and forward its port to the desktop loopback interface. Your Mac browser then opens a local URL while the service continues to run on the VPS.
+This feature gives HanabiCode Desktop an SSH `-L`-style path to a service running on the remote daemon host. You start a server in a workspace terminal, open the **Ports** tab in the right sidebar, and forward its port to the desktop loopback interface. Your Mac browser then opens a local URL while the service continues to run on the VPS.
 
 The first release targets the Electron desktop app and a Linux daemon host. The protocol and daemon design must leave room for mobile, but mobile UI and mobile background networking are out of scope.
 
@@ -35,22 +35,22 @@ Forwards are explicit and last for the current desktop session. Do not restore t
 
 ## User path
 
-1. You start `npm run dev` or another server in a Paseo terminal on the VPS.
+1. You start `npm run dev` or another server in a HanabiCode terminal on the VPS.
 2. The daemon observes a listening TCP socket owned by that terminal's process tree.
 3. The desktop **Ports** tab receives a workspace-scoped update.
 4. You select **Forward** on port `3000`.
 5. Electron binds `127.0.0.1:3000`, or another free local port.
-6. Paseo authorizes the remote target and opens a tunnel stream when a local program connects.
+6. HanabiCode authorizes the remote target and opens a tunnel stream when a local program connects.
 7. You open `http://127.0.0.1:3000` in the Mac browser.
-8. HTTP, WebSocket/HMR, SSE, uploads, and other TCP traffic pass through the encrypted Paseo connection.
+8. HTTP, WebSocket/HMR, SSE, uploads, and other TCP traffic pass through the encrypted HanabiCode connection.
 
 ## Data path
 
 ```text
 Mac browser
   -> Electron main-process loopback listener
-  -> dedicated encrypted Paseo tunnel connection
-  -> relay.paseo.sh (opaque frame routing)
+  -> dedicated encrypted HanabiCode tunnel connection
+  -> configured HanabiCode relay (opaque frame routing)
   -> VPS daemon port-forward service
   -> 127.0.0.1:<remote port> on the VPS
 ```
@@ -61,9 +61,9 @@ The Electron main process owns local sockets. The React renderer must not bind p
 
 Keep tunnel traffic off the renderer's agent/control WebSocket. A large frontend response must not delay terminal output, agent events, or commands. The dedicated connection still uses the existing pairing offer, daemon public key, relay endpoint, encrypted handshake, and normal daemon session authentication.
 
-## Official relay compatibility
+## Relay compatibility
 
-The design is technically compatible with the current official relay:
+The tunnel uses the same v2 relay contract as normal HanabiCode traffic:
 
 - the daemon and desktop both initiate outbound WebSockets, so the VPS needs no inbound port;
 - the relay pairs sockets by `serverId`, role, and v2 `connectionId` rather than by an official-app signature;
@@ -71,17 +71,7 @@ The design is technically compatible with the current official relay:
 - the relay supports bidirectional binary frames;
 - tunnel chunks will stay far below the relay's frame limit.
 
-No client attestation, bundle-ID allowlist, or fork check appears in the current connection protocol. A protocol-compatible fork can therefore establish the same second client connection and send new encrypted daemon messages without a relay change.
-
-This is not a service guarantee. `relay.paseo.sh` is upstream-operated infrastructure, and no published commitment grants third-party forks unlimited sustained bandwidth. The operator can add quotas, policy, or protocol changes. Treat the official relay as an external dependency:
-
-- run a bounded real-relay compatibility smoke test before merging the feature;
-- do not load-test the production relay;
-- cap streams, queued bytes, and transfer rates in the client and daemon;
-- keep direct/Tailscale connectivity usable;
-- keep the transport adapter independent enough to point at a fork-owned relay later.
-
-The first proof should browse a small development page, exercise one WebSocket, and reconnect once. If ordinary bounded traffic is rejected or destabilizes the control connection, stop and choose a fork-owned relay or Tailscale transport before building the full UI.
+The release configuration must point at the fork-owned relay described in [relay-options.md](relay-options.md). Do not ship `relay.paseo.sh` as a default or silently redirect profiles created by an upstream client. Cap streams, queued bytes, and frame sizes in both endpoints, keep direct/Tailscale recovery usable, and run a bounded HTTP, WebSocket, and reconnect smoke test against the deployed HanabiCode relay.
 
 ## Domain model
 
@@ -196,7 +186,7 @@ Translate client-owned labels, actions, empty states, and error wrappers in ever
 
 ## Security and resource limits
 
-This feature turns an authenticated Paseo client into a network pivot through the daemon. Preserve these limits:
+This feature turns an authenticated HanabiCode client into a network pivot through the daemon. Preserve these limits:
 
 - pair only through the existing daemon trust anchor and E2E handshake;
 - bind desktop listeners to loopback;
@@ -217,9 +207,9 @@ Each ticket should fit one focused development session. Complete them in depende
 
 ### 1. Prove the transport path
 
-**Decision:** Can a dedicated fork client carry bounded TCP data through the official relay without changing it or starving normal Paseo traffic?
+**Decision:** Can a dedicated fork client carry bounded TCP data through the relay without changing it or starving normal HanabiCode traffic?
 
-Build a disposable, manual-port spike with no sidebar UI. Open one dedicated encrypted connection, carry chunked data to a daemon loopback echo/HTTP server, and verify WebSocket traffic. Exercise normal agent/terminal traffic at the same time. Test locally against the open-source relay first, then run one bounded smoke test through `relay.paseo.sh`.
+Build a disposable, manual-port spike with no sidebar UI. Open one dedicated encrypted connection, carry chunked data to a daemon loopback echo/HTTP server, and verify WebSocket traffic. Exercise normal agent/terminal traffic at the same time. Test locally against the open-source relay, then run one bounded smoke test through the deployed HanabiCode relay.
 
 **Exit:** HTTP, WebSocket, bidirectional data, clean close, and one reconnect behave as specified; normal control traffic remains responsive; production relay emits no rejection attributable to fork identity or frame type. Record latency, close codes, and measured queue sizes. If this fails, stop the plan and decide between a fork-owned relay and Tailscale transport.
 
@@ -267,7 +257,7 @@ Test slow consumers, large responses, uploads, many browser asset connections, H
 
 ### 9. Complete desktop acceptance
 
-Run focused automated checks, real-Electron E2E, and packaged-app QA. The primary manual matrix is macOS desktop to a Linux VPS through the official relay. Also run the deterministic tunnel tests on direct/local transport. Record Windows and Linux desktop as tested or untested; do not claim coverage without evidence.
+Run focused automated checks, real-Electron E2E, and packaged-app QA. The primary manual matrix is macOS desktop to a Linux VPS through the configured HanabiCode relay. Also run the deterministic tunnel tests on direct/local transport. Record Windows and Linux desktop as tested or untested; do not claim coverage without evidence.
 
 Acceptance scenarios:
 

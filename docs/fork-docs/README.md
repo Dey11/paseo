@@ -1,12 +1,13 @@
-# Personal fork
+# HanabiCode personal fork
 
-This repository is Dey's personal downstream of Paseo. It is not an official `getpaseo/paseo` checkout or release source.
+This repository is Dey's HanabiCode downstream of Paseo. It is not an official `getpaseo/paseo` checkout or release source.
 
 Read this file before non-trivial work. Then read the subject doc that owns the task:
 
 - [development.md](development.md) — local and VPS development loops
 - [testing.md](testing.md) — feature verification and acceptance evidence
-- [connectivity-and-services.md](connectivity-and-services.md) — the official relay, Tailscale recovery, the VPS, and service dependencies
+- [connectivity-and-services.md](connectivity-and-services.md) — the HanabiCode connection topology, VPS, recovery path, and service dependencies
+- [relay-options.md](relay-options.md) — the fork-owned relay decision, deployment contract, and transport boundary
 - [desktop-port-forwarding.md](desktop-port-forwarding.md) — desktop Ports tab and relay-backed VPS port forwarding
 - [distribution.md](distribution.md) — GitHub-built desktop and Android releases
 - [android-eas-fallback.md](android-eas-fallback.md) — optional fork-owned Expo/EAS setup
@@ -28,7 +29,7 @@ The primary clients are:
 - the Electron desktop app on macOS;
 - the Android app on a personal phone.
 
-The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. Clients reach the daemon through Paseo's official relay. Tailscale remains the private recovery path and can also expose development servers.
+The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. Clients normally reach the daemon through the fork-owned HanabiCode relay on the same VPS. Tailscale remains the private recovery path and can also expose development servers.
 
 The desktop app is a client in this topology. Its built-in local daemon can be disabled while remote hosts stay connected.
 
@@ -38,8 +39,8 @@ Electron adds a **Ports** tab beside Files. It discovers TCP listeners owned by 
 
 ## Product boundaries
 
-- `relay.paseo.sh` is the default remote transport while the fork remains protocol-compatible.
-- The official relay is upstream-owned infrastructure. Keep direct Tailscale access working so an upstream outage, policy change, or incompatible fork protocol does not strand the operator.
+- A fork-owned HanabiCode relay is the default remote transport. Do not use upstream relay infrastructure for HanabiCode releases.
+- Keep direct Tailscale access working so a relay-process, reverse-proxy, or DNS failure does not strand the operator. See [relay-options.md](relay-options.md).
 - Cloudflare deployments, hosted Hub, store submission, push infrastructure, and public websites are optional and out of scope until explicitly requested.
 - Paseo does not broker model billing. Provider subscriptions and API usage belong to the provider CLI authenticated on the VPS.
 - Local speech is preferred when it meets the workflow. Paid speech APIs remain opt-in.

@@ -54,8 +54,8 @@ describe("runtime-paths", () => {
     mocks.existsSync.mockReturnValue(true);
     setProcessRuntime({
       platform: "darwin",
-      execPath: "/Applications/Paseo.app/Contents/MacOS/Paseo",
-      resourcesPath: "/Applications/Paseo.app/Contents/Resources",
+      execPath: "/Applications/HanabiCode.app/Contents/MacOS/HanabiCode",
+      resourcesPath: "/Applications/HanabiCode.app/Contents/Resources",
     });
   });
 
@@ -70,7 +70,7 @@ describe("runtime-paths", () => {
 
   it("uses the macOS Helper executable for packaged daemon node launches", () => {
     expect(resolveNodeExecPath()).toBe(
-      "/Applications/Paseo.app/Contents/Frameworks/Paseo Helper.app/Contents/MacOS/Paseo Helper",
+      "/Applications/HanabiCode.app/Contents/Frameworks/HanabiCode Helper.app/Contents/MacOS/HanabiCode Helper",
     );
   });
 });

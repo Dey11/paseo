@@ -24,16 +24,14 @@ on:
       - "packages/server/**"
   push:
     branches: [main]
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
-      paseo_version:
+      hanabicode_version:
         description: "Expected source version to build. Required when publish is true."
         required: false
         default: ""
       publish:
-        description: "Publish the image to GHCR. Manual publishes require paseo_version."
+        description: "Publish the image to this repository's GHCR namespace. Manual publishes require hanabicode_version."
         required: false
         default: "false"
         type: choice
@@ -41,7 +39,7 @@ on:
           - "false"
           - "true"
       publish_latest:
-        description: "Also publish ghcr.io/getpaseo/paseo:latest. Ignored for prereleases."
+        description: "Also publish the latest tag. Ignored for prereleases."
         required: false
         default: "false"
         type: choice
@@ -71,34 +69,27 @@ jobs:
 
       - id: values
         env:
-          INPUT_PASEO_VERSION: ${{ inputs.paseo_version }}
+          INPUT_HANABICODE_VERSION: ${{ inputs.hanabicode_version }}
           INPUT_PUBLISH: ${{ inputs.publish }}
           INPUT_PUBLISH_LATEST: ${{ inputs.publish_latest }}
           REPO_OWNER: ${{ github.repository_owner }}
-          REF_NAME: ${{ github.ref_name }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
           set -euo pipefail
 
           owner="$(printf '%s' "${REPO_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          image="ghcr.io/${owner}/paseo"
+          repository="$(printf '%s' "${REPO_NAME}" | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${owner}/${repository}"
           package_version="$(node -p "require('./package.json').version")"
-          install_version="${INPUT_PASEO_VERSION:-${package_version}}"
+          install_version="${INPUT_HANABICODE_VERSION:-${package_version}}"
           publish=false
           publish_latest=false
           prerelease=false
 
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            install_version="${REF_NAME#v}"
-            publish=true
-            if [[ "${REF_NAME}" == *-* ]]; then
-              prerelease=true
-            else
-              publish_latest=true
-            fi
-          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             if [[ "${INPUT_PUBLISH:-false}" == "true" ]]; then
-              if [[ -z "${INPUT_PASEO_VERSION}" || "${INPUT_PASEO_VERSION}" == "latest" ]]; then
-                echo "::error::paseo_version is required for manual Docker publishes."
+              if [[ -z "${INPUT_HANABICODE_VERSION}" || "${INPUT_HANABICODE_VERSION}" == "latest" ]]; then
+                echo "::error::hanabicode_version is required for manual Docker publishes."
                 exit 1
               fi
               publish=true
@@ -149,12 +140,12 @@ jobs:
           file: docker/base/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           build-args: |
-            PASEO_VERSION=${{ needs.setup.outputs.install_version }}
+            HANABICODE_VERSION=${{ needs.setup.outputs.install_version }}
           tags: ${{ needs.setup.outputs.check_tag }}
           push: false
           provenance: false
-          cache-from: type=gha,scope=paseo
-          cache-to: type=gha,scope=paseo,mode=max
+          cache-from: type=gha,scope=hanabicode
+          cache-to: type=gha,scope=hanabicode,mode=max
 
   publish:
     needs: setup
@@ -182,9 +173,9 @@ jobs:
           file: docker/base/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           build-args: |
-            PASEO_VERSION=${{ needs.setup.outputs.install_version }}
+            HANABICODE_VERSION=${{ needs.setup.outputs.install_version }}
           tags: ${{ needs.setup.outputs.publish_tags }}
           push: true
           provenance: false
-          cache-from: type=gha,scope=paseo
-          cache-to: type=gha,scope=paseo,mode=max
+          cache-from: type=gha,scope=hanabicode
+          cache-to: type=gha,scope=hanabicode,mode=max

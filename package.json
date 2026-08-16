@@ -1,8 +1,8 @@
 {
-  "name": "paseo",
+  "name": "hanabicode",
   "version": "0.4.0",
   "private": true,
-  "description": "Paseo: voice-controlled development environment for local AI coding agents",
+  "description": "HanabiCode: control local and remote AI coding agents from desktop and mobile",
   "keywords": [
     "development",
     "mcp",
@@ -10,15 +10,18 @@
     "voice",
     "voice-assistant"
   ],
-  "homepage": "https://paseo.sh",
+  "homepage": "https://github.com/Dey11/hanabicode",
   "license": "AGPL-3.0-or-later",
   "author": {
     "name": "Mohamed Boudra",
     "email": "hello@moboudra.com"
   },
+  "contributors": [
+    "Dey11 and HanabiCode contributors"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/getpaseo/paseo.git"
+    "url": "https://github.com/Dey11/hanabicode.git"
   },
   "workspaces": [
     "packages/expo-two-way-audio",
@@ -102,20 +105,8 @@
     "version:all:beta:major": "node scripts/set-release-version.mjs --mode beta-major",
     "version:all:beta:next": "node scripts/set-release-version.mjs --mode beta-next",
     "version:all:promote": "node scripts/set-release-version.mjs --mode promote",
-    "release:check": "npm run release:prepare && npm run typecheck --workspace=@getpaseo/highlight && npm run typecheck --workspace=@getpaseo/relay && npm run typecheck --workspace=@getpaseo/protocol && npm run build:client:clean && npm run typecheck --workspace=@getpaseo/client && npm run build:server:clean && npm run typecheck --workspace=@getpaseo/server && npm run typecheck --workspace=@getpaseo/cli && npm pack --dry-run --workspace=@getpaseo/highlight && npm pack --dry-run --workspace=@getpaseo/relay && npm pack --dry-run --workspace=@getpaseo/protocol && npm pack --dry-run --workspace=@getpaseo/client && npm pack --dry-run --workspace=@getpaseo/server && npm pack --dry-run --workspace=@getpaseo/cli",
-    "release:publish:dry-run": "npm publish --dry-run --workspace=@getpaseo/highlight --access public && npm publish --dry-run --workspace=@getpaseo/relay --access public && npm publish --dry-run --workspace=@getpaseo/protocol --access public && npm publish --dry-run --workspace=@getpaseo/client --access public && npm publish --dry-run --workspace=@getpaseo/server --access public && npm publish --dry-run --workspace=@getpaseo/cli --access public",
-    "release:publish:beta:dry-run": "npm publish --dry-run --workspace=@getpaseo/highlight --access public --tag beta && npm publish --dry-run --workspace=@getpaseo/relay --access public --tag beta && npm publish --dry-run --workspace=@getpaseo/protocol --access public --tag beta && npm publish --dry-run --workspace=@getpaseo/client --access public --tag beta && npm publish --dry-run --workspace=@getpaseo/server --access public --tag beta && npm publish --dry-run --workspace=@getpaseo/cli --access public --tag beta",
-    "release:publish": "npm publish --workspace=@getpaseo/highlight --access public && npm publish --workspace=@getpaseo/relay --access public && npm publish --workspace=@getpaseo/protocol --access public && npm publish --workspace=@getpaseo/client --access public && npm publish --workspace=@getpaseo/server --access public && npm publish --workspace=@getpaseo/cli --access public",
-    "release:publish:beta": "npm publish --workspace=@getpaseo/highlight --access public --tag beta && npm publish --workspace=@getpaseo/relay --access public --tag beta && npm publish --workspace=@getpaseo/protocol --access public --tag beta && npm publish --workspace=@getpaseo/client --access public --tag beta && npm publish --workspace=@getpaseo/server --access public --tag beta && npm publish --workspace=@getpaseo/cli --access public --tag beta",
-    "release:push": "node scripts/push-current-release-tag.mjs",
-    "release:beta:patch": "npm run release:check && npm run version:all:beta:patch && npm run release:publish:beta && npm run release:push",
-    "release:beta:minor": "npm run release:check && npm run version:all:beta:minor && npm run release:publish:beta && npm run release:push",
-    "release:beta:major": "npm run release:check && npm run version:all:beta:major && npm run release:publish:beta && npm run release:push",
-    "release:beta:next": "npm run release:check && npm run version:all:beta:next && npm run release:publish:beta && npm run release:push",
-    "release:promote": "npm run release:check && npm run version:all:promote && npm run release:publish && npm run release:push",
-    "release:patch": "npm run release:check && npm run version:all:patch && npm run release:publish && npm run release:push",
-    "release:minor": "npm run release:check && npm run version:all:minor && npm run release:publish && npm run release:push",
-    "release:major": "npm run release:check && npm run version:all:major && npm run release:publish && npm run release:push"
+    "release:check": "npm run release:prepare && npm run build:server:clean && npm run typecheck && npm run lint && npm run format:check && npm run release:workflow:test",
+    "release:workflow:test": "node --test scripts/hanabicode-release-workflow.test.mjs"
   },
   "devDependencies": {
     "@types/ws": "^8.5.14",

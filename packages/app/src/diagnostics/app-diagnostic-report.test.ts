@@ -47,7 +47,7 @@ function makeHost(): HostProfile {
 }
 
 describe("app diagnostics report", () => {
-  test("reports whether the connected daemon is managed by Paseo Desktop", () => {
+  test("reports whether the connected daemon is managed by HanabiCode Desktop", () => {
     const report = formatServerInfoSection({
       status: "server_info",
       serverId: "srv-desktop-managed",
@@ -108,7 +108,8 @@ describe("app diagnostics report", () => {
         "/tmp/paseo-secret.sock",
         "\\\\.\\pipe\\paseo-secret",
         "password=tcp-password",
-        "paseo://pairing-secret",
+        "hanabicode://pairing-secret",
+        "paseo://legacy-pairing-secret",
       ].join("\n"),
       [host],
     );
@@ -120,5 +121,6 @@ describe("app diagnostics report", () => {
     expect(redacted).not.toContain("\\\\.\\pipe\\paseo-secret");
     expect(redacted).not.toContain("tcp-password");
     expect(redacted).not.toContain("pairing-secret");
+    expect(redacted).not.toContain("legacy-pairing-secret");
   });
 });
