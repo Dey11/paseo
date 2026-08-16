@@ -2,6 +2,13 @@ import { Platform } from "react-native";
 import { getElectronHost } from "@/desktop/electron/host";
 import type { BrowserKeyboardPolicy } from "@/desktop/browser/shortcuts";
 import type { SessionInboundMessage, SessionOutboundMessage } from "@getpaseo/protocol/messages";
+import type {
+  DesktopPortForwardingCreateInput,
+  DesktopPortForwardingListInput,
+  DesktopPortForwardingSnapshot,
+  DesktopPortForwardingStopInput,
+  DesktopPortForwardingUnwatchInput,
+} from "@/ports/types";
 
 type BrowserAutomationExecuteRequest = Extract<
   SessionOutboundMessage,
@@ -170,6 +177,16 @@ export interface DesktopInvokeBridge {
   invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
 }
 
+export interface DesktopPortForwardingBridge {
+  watch?: (input: DesktopPortForwardingListInput) => Promise<DesktopPortForwardingSnapshot>;
+  create?: (input: DesktopPortForwardingCreateInput) => Promise<DesktopPortForwardingSnapshot>;
+  stop?: (input: DesktopPortForwardingStopInput) => Promise<DesktopPortForwardingSnapshot>;
+  unwatch?: (input: DesktopPortForwardingUnwatchInput) => Promise<void>;
+  onStatus?: (
+    handler: (snapshot: DesktopPortForwardingSnapshot) => void,
+  ) => Promise<() => void> | (() => void);
+}
+
 export interface DesktopHostBridge {
   platform?: string;
   invoke?: DesktopInvokeBridge["invoke"];
@@ -184,6 +201,7 @@ export interface DesktopHostBridge {
   webUtils?: DesktopWebUtilsBridge;
   menu?: DesktopMenuBridge;
   browser?: DesktopBrowserBridge;
+  ports?: DesktopPortForwardingBridge;
 }
 
 declare global {

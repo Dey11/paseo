@@ -603,6 +603,7 @@ export const en = {
         toggle: "Toggle explorer",
         changes: "Changes",
         files: "Files",
+        ports: "Ports",
       },
       toasts: {
         copyFailed: "Copy failed",
@@ -647,6 +648,48 @@ export const en = {
           tabs: "This will close {{tabs}} tab(s).",
           agents: "This will archive {{agents}} agent(s).",
         },
+      },
+    },
+    ports: {
+      title: "Forwarded ports",
+      description:
+        "Open a workspace service on this computer through the encrypted host connection.",
+      endpoint: "local endpoint",
+      manualPlaceholder: "Port number",
+      protocol: "Protocol",
+      fallbackPort: "Local port {{requestedPort}} was busy; using {{localPort}}.",
+      observationMissing:
+        "The host no longer detects this port. The existing forward remains active.",
+      loading: "Looking for workspace ports…",
+      empty: "No listening ports were found for this workspace.",
+      noWorkspace: "Open a workspace to view its ports.",
+      hostDisconnected: "Reconnect to the host to use port forwarding.",
+      updateHost: "Update the host daemon to use workspace port forwarding.",
+      unsupportedConnection: "Switch this host to a TCP or relay connection to forward ports.",
+      discoveryUnavailable:
+        "Automatic discovery is unavailable on this host. Enter a port manually.",
+      actions: {
+        forward: "Forward",
+        open: "Open",
+        copy: "Copy",
+        stop: "Stop",
+      },
+      states: {
+        available: "Available",
+        unavailable: "Unavailable",
+        starting: "Starting",
+        forwarded: "Forwarded",
+        disconnected: "Disconnected",
+        failed: "Failed",
+      },
+      errors: {
+        runtime: "Port forwarding error",
+        watch: "Unable to load workspace ports.",
+        forward: "Unable to forward this port.",
+        stop: "Unable to stop this port forward.",
+        copy: "Unable to copy the local endpoint.",
+        open: "Unable to open the local endpoint.",
+        desktopUpdate: "Update the desktop app to use port forwarding.",
       },
     },
     header: {

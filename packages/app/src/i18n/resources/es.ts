@@ -610,6 +610,7 @@ export const es: TranslationResources = {
         toggle: "Alternar explorador",
         changes: "Cambios",
         files: "Archivos",
+        ports: "Puertos",
       },
       toasts: {
         copyFailed: "Copia fallida",
@@ -656,6 +657,43 @@ export const es: TranslationResources = {
           tabs: "Esto cerrará las pestañas{{tabs}}.",
           agents: "Esto archivará los agentes{{agents}}.",
         },
+      },
+    },
+    ports: {
+      title: "Puertos reenviados",
+      description:
+        "Abre un servicio del espacio de trabajo en este equipo mediante la conexión cifrada al host.",
+      endpoint: "destino local",
+      manualPlaceholder: "Número de puerto",
+      protocol: "Protocolo",
+      fallbackPort: "El puerto local {{requestedPort}} estaba ocupado; se usa {{localPort}}.",
+      observationMissing: "El host ya no detecta este puerto. El reenvío actual sigue activo.",
+      loading: "Buscando puertos del espacio de trabajo…",
+      empty: "No se encontraron puertos en escucha para este espacio de trabajo.",
+      noWorkspace: "Abre un espacio de trabajo para ver sus puertos.",
+      hostDisconnected: "Vuelve a conectar el host para usar el reenvío de puertos.",
+      updateHost: "Actualiza el daemon del host para usar el reenvío de puertos.",
+      unsupportedConnection:
+        "Cambia este host a una conexión TCP o de relay para reenviar puertos.",
+      discoveryUnavailable:
+        "La detección automática no está disponible. Introduce un puerto manualmente.",
+      actions: { forward: "Reenviar", open: "Abrir", copy: "Copiar", stop: "Detener" },
+      states: {
+        available: "Disponible",
+        unavailable: "No disponible",
+        starting: "Iniciando",
+        forwarded: "Reenviado",
+        disconnected: "Desconectado",
+        failed: "Falló",
+      },
+      errors: {
+        runtime: "Error de reenvío de puertos",
+        watch: "No se pudieron cargar los puertos del espacio de trabajo.",
+        forward: "No se pudo reenviar este puerto.",
+        stop: "No se pudo detener este reenvío.",
+        copy: "No se pudo copiar el destino local.",
+        open: "No se pudo abrir el destino local.",
+        desktopUpdate: "Actualiza la aplicación de escritorio para usar el reenvío de puertos.",
       },
     },
     header: {

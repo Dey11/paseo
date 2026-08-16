@@ -609,6 +609,7 @@ export const ptBR: TranslationResources = {
         toggle: "Alternar explorador",
         changes: "Alterações",
         files: "Arquivos",
+        ports: "Portas",
       },
       toasts: {
         copyFailed: "Falha ao copiar",
@@ -654,6 +655,43 @@ export const ptBR: TranslationResources = {
           tabs: "Isso vai fechar {{tabs}} aba(s).",
           agents: "Isso vai arquivar {{agents}} agente(s).",
         },
+      },
+    },
+    ports: {
+      title: "Portas encaminhadas",
+      description:
+        "Abra um serviço do workspace neste computador pela conexão criptografada com o host.",
+      endpoint: "endereço local",
+      manualPlaceholder: "Número da porta",
+      protocol: "Protocolo",
+      fallbackPort: "A porta local {{requestedPort}} estava ocupada; usando {{localPort}}.",
+      observationMissing:
+        "O host não detecta mais esta porta. O encaminhamento existente permanece ativo.",
+      loading: "Procurando portas do workspace…",
+      empty: "Nenhuma porta em escuta foi encontrada neste workspace.",
+      noWorkspace: "Abra um workspace para ver suas portas.",
+      hostDisconnected: "Reconecte o host para usar o encaminhamento de portas.",
+      updateHost: "Atualize o daemon do host para usar o encaminhamento de portas.",
+      unsupportedConnection: "Mude este host para uma conexão TCP ou relay para encaminhar portas.",
+      discoveryUnavailable:
+        "A descoberta automática não está disponível. Digite uma porta manualmente.",
+      actions: { forward: "Encaminhar", open: "Abrir", copy: "Copiar", stop: "Parar" },
+      states: {
+        available: "Disponível",
+        unavailable: "Indisponível",
+        starting: "Iniciando",
+        forwarded: "Encaminhada",
+        disconnected: "Desconectada",
+        failed: "Falhou",
+      },
+      errors: {
+        runtime: "Erro de encaminhamento de porta",
+        watch: "Não foi possível carregar as portas do workspace.",
+        forward: "Não foi possível encaminhar esta porta.",
+        stop: "Não foi possível parar este encaminhamento.",
+        copy: "Não foi possível copiar o endereço local.",
+        open: "Não foi possível abrir o endereço local.",
+        desktopUpdate: "Atualize o aplicativo desktop para encaminhar portas.",
       },
     },
     header: {

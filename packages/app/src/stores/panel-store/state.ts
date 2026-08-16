@@ -162,7 +162,7 @@ export function buildToggleFileExplorerPatch(
   return { desktop: { ...state.desktop, fileExplorerOpen: false } };
 }
 
-const ExplorerTabSchema = z.enum(["changes", "files", "pr"]);
+const ExplorerTabSchema = z.enum(["changes", "files", "ports", "pr"]);
 const DesktopSidebarStorageSchema = z.strictObject({
   agentListOpen: z.boolean().optional(),
   fileExplorerOpen: z.boolean().optional(),

@@ -96,6 +96,20 @@ describe("panel-store explorer tab resolution", () => {
       }),
     ).toBe("files");
   });
+
+  it("restores a stored ports tab for non-git checkouts", () => {
+    const key = buildExplorerCheckoutKey(serverId, cwd)!;
+    expect(
+      resolveExplorerTabForCheckout({
+        serverId,
+        cwd,
+        isGit: false,
+        explorerTabByCheckout: {
+          [key]: "ports",
+        },
+      }),
+    ).toBe("ports");
+  });
 });
 
 describe("panel-store migration", () => {
@@ -128,6 +142,18 @@ describe("panel-store migration", () => {
 
     expect(state.mobileView).toBeUndefined();
     expect(state.mobilePanel).toBeUndefined();
+  });
+
+  it("preserves the Electron-only ports tab in current persisted state", () => {
+    const key = buildExplorerCheckoutKey("server-1", "/tmp/repo")!;
+    const state = migratePanelState(
+      { explorerTab: "ports", explorerTabByCheckout: { [key]: "ports" } },
+      13,
+      { isWeb: true },
+    );
+
+    expect(state.explorerTab).toBe("ports");
+    expect(state.explorerTabByCheckout).toEqual({ [key]: "ports" });
   });
 });
 

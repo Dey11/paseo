@@ -46,6 +46,8 @@ import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 import { resolveFocusedChatTarget } from "@/composer/focused-chat-target";
 import { createWorkspaceFileAttachment } from "@/attachments/workspace-file";
 import { useDraftStore } from "@/stores/draft-store";
+import { getIsElectron } from "@/constants/platform";
+import { PortsPane } from "@/ports/ports-pane";
 
 function logExplorerSidebar(_event: string, _details: Record<string, unknown>): void {}
 
@@ -305,6 +307,42 @@ interface SidebarContentProps {
   onOpenFile?: (filePath: string) => void;
 }
 
+function resolveExplorerTab(input: {
+  activeTab: ExplorerTab;
+  isGit: boolean;
+  showPortsTab: boolean;
+  showPrTab: boolean;
+}): ExplorerTab {
+  if (
+    (!input.isGit && (input.activeTab === "changes" || input.activeTab === "pr")) ||
+    (!input.showPortsTab && input.activeTab === "ports")
+  ) {
+    return "files";
+  }
+  if (input.activeTab === "pr" && !input.showPrTab) {
+    return "changes";
+  }
+  return input.activeTab;
+}
+
+function ExplorerPortsTabButton(props: {
+  active: boolean;
+  label: string;
+  onTabPress: (tab: ExplorerTab) => void;
+  visible: boolean;
+}) {
+  if (!props.visible) return null;
+  return (
+    <ExplorerTabButton
+      tab="ports"
+      active={props.active}
+      label={props.label}
+      onTabPress={props.onTabPress}
+      testID="explorer-tab-ports"
+    />
+  );
+}
+
 function ExplorerSidebarContent({
   activeTab,
   onTabPress,
@@ -329,9 +367,8 @@ function ExplorerSidebarContent({
   });
   const hasPullRequest = prPane.prNumber !== null;
   const showPrTab = hasPullRequest || (activeTab === "pr" && prPane.isLoading);
-  const requestedTab: ExplorerTab =
-    !isGit && (activeTab === "changes" || activeTab === "pr") ? "files" : activeTab;
-  const resolvedTab: ExplorerTab = requestedTab === "pr" && !showPrTab ? "changes" : requestedTab;
+  const showPortsTab = getIsElectron();
+  const resolvedTab = resolveExplorerTab({ activeTab, isGit, showPortsTab, showPrTab });
   const prTabLabel = formatPrTabLabel(prPane.prNumber);
   const refreshGitActions = useCheckoutGitActionsStore((s) => s.refresh);
   const handlePrRetry = useCallback(() => {
@@ -370,6 +407,12 @@ function ExplorerSidebarContent({
             label={t("workspace.tabs.explorer.files")}
             onTabPress={onTabPress}
             testID="explorer-tab-files"
+          />
+          <ExplorerPortsTabButton
+            active={resolvedTab === "ports"}
+            label={t("workspace.tabs.explorer.ports")}
+            onTabPress={onTabPress}
+            visible={showPortsTab}
           />
           {isGit && showPrTab && (
             <ExplorerTabButton
@@ -431,6 +474,13 @@ function ExplorerSidebarContent({
             workspaceId={workspaceId}
             workspaceRoot={workspaceRoot}
             onOpenFile={onOpenFile}
+          />
+        )}
+        {resolvedTab === "ports" && (
+          <PortsPane
+            active={isOpen && resolvedTab === "ports"}
+            serverId={serverId}
+            workspaceId={workspaceId}
           />
         )}
         {resolvedTab === "pr" && (
