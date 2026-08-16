@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { BrowserKeyboardPolicy } from "./features/browser-keyboard/index.js";
+import type {
+  DesktopPortForwardingCreateInput,
+  DesktopPortForwardingListInput,
+  DesktopPortForwardingSnapshot,
+  DesktopPortForwardingStopInput,
+  DesktopPortForwardingUnwatchInput,
+} from "./features/port-forwarding/types.js";
 
 // This preload runs in Electron's sandbox and is tsc-compiled (not bundled), so it MUST
 // NOT emit any runtime module load other than "electron" — a require() of a local or
@@ -124,5 +131,24 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
     ) => ipcRenderer.invoke("paseo:browser:capture-element", browserId, rect),
     copyElement: (payload: { text?: string; imageDataUrl?: string }) =>
       ipcRenderer.invoke("paseo:browser:copy-element", payload),
+  },
+  ports: {
+    watch: (input: DesktopPortForwardingListInput) =>
+      ipcRenderer.invoke("paseo:ports:watch", input) as Promise<DesktopPortForwardingSnapshot>,
+    create: (input: DesktopPortForwardingCreateInput) =>
+      ipcRenderer.invoke("paseo:ports:create", input) as Promise<DesktopPortForwardingSnapshot>,
+    stop: (input: DesktopPortForwardingStopInput) =>
+      ipcRenderer.invoke("paseo:ports:stop", input) as Promise<DesktopPortForwardingSnapshot>,
+    unwatch: (input: DesktopPortForwardingUnwatchInput) =>
+      ipcRenderer.invoke("paseo:ports:unwatch", input) as Promise<void>,
+    onStatus: (handler: (snapshot: DesktopPortForwardingSnapshot) => void): Promise<() => void> => {
+      const listener = (_ipcEvent: Electron.IpcRendererEvent, payload: unknown) => {
+        handler(payload as DesktopPortForwardingSnapshot);
+      };
+      ipcRenderer.on("paseo:event:ports-status", listener);
+      return Promise.resolve(() => {
+        ipcRenderer.removeListener("paseo:event:ports-status", listener);
+      });
+    },
   },
 });

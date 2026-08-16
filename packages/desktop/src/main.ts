@@ -89,6 +89,7 @@ import {
 import { runDesktopStartup } from "./desktop-startup.js";
 import { autoUpdateInstalledSkills } from "./integrations/skills/index.js";
 import { registerBrowserAutomationIpc } from "./features/browser-automation/ipc.js";
+import { registerPortForwardingFeature } from "./features/port-forwarding/index.js";
 import { BrowserKeyboard } from "./features/browser-keyboard/index.js";
 import { installAppUpdateOnQuit } from "./features/auto-updater.js";
 import {
@@ -106,6 +107,14 @@ const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || "Paseo";
 const UPDATE_QUIT_DEADLINE_MS = 5_000;
 const pendingBrowserWindowOpenRequests = new PendingBrowserWindowOpenRequests();
 const agentNavigationInbox = new AgentNavigationInbox();
+
+const portForwarding = registerPortForwardingFeature({
+  logger: {
+    info: (obj, msg) => log.info(`[port-forwarding] ${msg}`, obj),
+    warn: (obj, msg) => log.warn(`[port-forwarding] ${msg}`, obj),
+    error: (obj, msg) => log.error(`[port-forwarding] ${msg}`, obj),
+  },
+});
 
 // A second-instance launch can arrive before the packaged protocol handler,
 // IPC handlers, and first window exist. Wait for full bootstrap, not just
@@ -739,6 +748,7 @@ async function createWindow(
     agentNavigationInbox.removeWindow(webContentsId);
     unregisterPaseoBrowserHost(webContentsId);
     browserKeyboard.detachHost(webContentsId);
+    portForwarding.removeWindow(webContentsId);
   });
 
   if (devWorktreeName) {
@@ -1081,6 +1091,9 @@ const quitLifecycle = createQuitLifecycle({
 
 // electron-updater forwards this event through Electron's built-in autoUpdater.
 electronAutoUpdater.on("before-quit-for-update", quitLifecycle.handleBeforeQuitForUpdate);
+app.on("before-quit", () => {
+  portForwarding.disposeAll();
+});
 app.on("before-quit", quitLifecycle.handleBeforeQuit);
 registerExternalQuitSignals({ signals: process, quit: () => app.quit() });
 
