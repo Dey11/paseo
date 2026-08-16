@@ -6,13 +6,13 @@ Treat this as practical project guidance. The repository's [LICENSE](../../LICEN
 
 ## When obligations apply
 
-| Use                                      | Fork obligation                                                                                 |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| You modify and run the fork only yourself | You do not have to publish a private modification merely because you made it                    |
-| A friend downloads an APK, DMG, or EXE   | Give that recipient access to the complete corresponding source under the AGPL                  |
-| A friend uses your modified VPS daemon   | Prominently offer that network user the corresponding source of the running modified version    |
-| You publish a GitHub Release             | Put a clear source link beside the installers and keep that source available                    |
-| You charge for a build or support        | The AGPL permits charging, but recipients retain the AGPL rights to source, modification, and sharing |
+| Use                                       | Fork obligation                                                                                       |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| You modify and run the fork only yourself | You do not have to publish a private modification merely because you made it                          |
+| A friend downloads an APK, DMG, or EXE    | Give that recipient access to the complete corresponding source under the AGPL                        |
+| A friend uses your modified VPS daemon    | Prominently offer that network user the corresponding source of the running modified version          |
+| You publish a GitHub Release              | Put a clear source link beside the installers and keep that source available                          |
+| You charge for a build or support         | The AGPL permits charging, but recipients retain the AGPL rights to source, modification, and sharing |
 
 Sharing a binary with one friend is still conveying a copy. Running a modified daemon for a friend is remote network interaction even when no daemon binary is sent to them.
 

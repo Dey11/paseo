@@ -72,6 +72,30 @@ Use a disposable project and checkout-local daemon for feature development. Conn
 
 Open VPS development servers on the Mac through SSH forwarding, a Tailscale address, or the service proxy. The Electron embedded browser runs on the Mac, so its target URL must be reachable from the Mac.
 
+## Desktop port-forwarding loop
+
+Run the daemon and desktop from the same feature commit. Port forwarding adds no environment variables or secrets: Electron reuses the selected host's existing TCP password or relay pairing offer and does not persist a second copy.
+
+On the Linux VPS:
+
+```bash
+npm ci
+npm run build:server
+npm run dev:server
+npm run cli -- daemon pair --relay
+```
+
+The last command uses checkout-local `.dev/paseo-home` state and prints the pairing link for the development daemon. Do not restart the stable daemon on `6767` for this loop.
+
+On the Mac, check out the same commit and run:
+
+```bash
+npm ci
+npm run dev:desktop
+```
+
+Pair the development host, open a workspace, and start a service in a Paseo terminal. Open the Explorer and select **Ports** beside **Files**, forward the observed port, and use the displayed `127.0.0.1` endpoint. Automatic discovery requires a Linux daemon; manual forwarding remains available when discovery is unsupported.
+
 ## Build boundaries
 
 | Change                       | Restart or rebuild                                  |

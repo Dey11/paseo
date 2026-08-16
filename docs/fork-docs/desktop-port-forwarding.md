@@ -1,6 +1,8 @@
 # Desktop workspace port forwarding
 
-Status: planned. No production implementation exists yet.
+Status: implemented for Electron desktop with a Linux daemon. Automated coverage exercises the binary protocol, real loopback sockets, Linux `/proc` attribution, flow control, reconnect cleanup, IPC validation, and UI state. The official relay's encrypted binary path has a bounded live smoke test, but the complete HTTP, WebSocket, reconnect, and control-responsiveness acceptance proof still requires a macOS packaged-app run before publishing a release.
+
+Use the [fork development guide](development.md#desktop-port-forwarding-loop) for local setup. The feature adds no environment variables: it reuses the selected host's existing TCP password or relay pairing offer.
 
 This feature gives Paseo Desktop an SSH `-L`-style path to a service running on the remote daemon host. You start a server in a workspace terminal, open the **Ports** tab in the right sidebar, and forward its port to the desktop loopback interface. Your Mac browser then opens a local URL while the service continues to run on the VPS.
 
@@ -83,13 +85,13 @@ The first proof should browse a small development page, exercise one WebSocket, 
 
 ## Domain model
 
-| Term | Meaning | Owner |
-| --- | --- | --- |
-| Port | A listening TCP endpoint observed for a workspace terminal or declared service | Daemon, keyed by `workspaceId` |
-| Port forward | The user's mapping from one remote port to one desktop loopback listener | Electron plus daemon session |
-| Tunnel | The encrypted multiplexed byte transport carrying port-forward streams | Electron and daemon |
-| Tunnel stream | One TCP connection accepted by the local listener and connected to the remote target | Electron and daemon |
-| Local endpoint | The bound `127.0.0.1:<port>` address on the desktop | Electron |
+| Term           | Meaning                                                                              | Owner                          |
+| -------------- | ------------------------------------------------------------------------------------ | ------------------------------ |
+| Port           | A listening TCP endpoint observed for a workspace terminal or declared service       | Daemon, keyed by `workspaceId` |
+| Port forward   | The user's mapping from one remote port to one desktop loopback listener             | Electron plus daemon session   |
+| Tunnel         | The encrypted multiplexed byte transport carrying port-forward streams               | Electron and daemon            |
+| Tunnel stream  | One TCP connection accepted by the local listener and connected to the remote target | Electron and daemon            |
+| Local endpoint | The bound `127.0.0.1:<port>` address on the desktop                                  | Electron                       |
 
 Ports are workspace-owned. Two workspaces can share a `cwd`; their terminals and forwards must remain separate. Use `workspaceId` for discovery, authorization, UI state, and cleanup. The selected right-sidebar tab can continue using its existing checkout memory, but port contents cannot use `(serverId, cwd)` as identity.
 

@@ -60,12 +60,12 @@ Back up the keystore and its passwords in two secure places. Losing the key mean
 
 Add these repository-level [GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets):
 
-| Secret                       | Value                                      |
-| ---------------------------- | ------------------------------------------ |
-| `ANDROID_KEYSTORE_BASE64`    | Base64-encoded keystore                    |
-| `ANDROID_KEYSTORE_PASSWORD`  | Keystore password                          |
-| `ANDROID_KEY_ALIAS`          | Alias passed to `keytool`                  |
-| `ANDROID_KEY_PASSWORD`       | Key password                               |
+| Secret                      | Value                     |
+| --------------------------- | ------------------------- |
+| `ANDROID_KEYSTORE_BASE64`   | Base64-encoded keystore   |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password         |
+| `ANDROID_KEY_ALIAS`         | Alias passed to `keytool` |
+| `ANDROID_KEY_PASSWORD`      | Key password              |
 
 With GitHub CLI authenticated to the fork repository:
 

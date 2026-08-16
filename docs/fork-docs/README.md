@@ -7,7 +7,7 @@ Read this file before non-trivial work. Then read the subject doc that owns the 
 - [development.md](development.md) — local and VPS development loops
 - [testing.md](testing.md) — feature verification and acceptance evidence
 - [connectivity-and-services.md](connectivity-and-services.md) — the official relay, Tailscale recovery, the VPS, and service dependencies
-- [desktop-port-forwarding.md](desktop-port-forwarding.md) — plan for the desktop Ports tab and relay-backed VPS port forwarding
+- [desktop-port-forwarding.md](desktop-port-forwarding.md) — desktop Ports tab and relay-backed VPS port forwarding
 - [distribution.md](distribution.md) — GitHub-built desktop and Android releases
 - [android-eas-fallback.md](android-eas-fallback.md) — optional fork-owned Expo/EAS setup
 - [licensing.md](licensing.md) — AGPL obligations for private use and shared builds
@@ -31,6 +31,10 @@ The primary clients are:
 The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. Clients reach the daemon through Paseo's official relay. Tailscale remains the private recovery path and can also expose development servers.
 
 The desktop app is a client in this topology. Its built-in local daemon can be disabled while remote hosts stay connected.
+
+## Desktop port forwarding
+
+Electron adds a **Ports** tab beside Files. It discovers TCP listeners owned by workspace terminal processes on the Linux VPS and lets you bind an encrypted forward to `127.0.0.1` on the desktop. Manual forwarding covers services that process discovery cannot attribute, including containers. The tunnel reuses the selected host's existing direct or relay connection credentials; it does not add an environment variable or persist another pairing secret. See [desktop-port-forwarding.md](desktop-port-forwarding.md) for behavior, limits, and the remaining packaged-app acceptance check.
 
 ## Product boundaries
 
