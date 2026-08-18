@@ -35,6 +35,7 @@ import type {
   CheckoutCommit,
   ParsedDiffFile,
   CheckoutCommitResponse,
+  CheckoutGenerateCommitMessageResponse,
   CheckoutMergeResponse,
   CheckoutMergeFromBaseResponse,
   CheckoutPullResponse,
@@ -398,6 +399,7 @@ type SubscribeCheckoutDiffPayload = Extract<
 >["payload"];
 type CheckoutDiffPayload = Omit<SubscribeCheckoutDiffPayload, "subscriptionId">;
 type CheckoutCommitPayload = CheckoutCommitResponse["payload"];
+type CheckoutGenerateCommitMessagePayload = CheckoutGenerateCommitMessageResponse["payload"];
 type CheckoutMergePayload = CheckoutMergeResponse["payload"];
 type CheckoutMergeFromBasePayload = CheckoutMergeFromBaseResponse["payload"];
 type CheckoutPullPayload = CheckoutPullResponse["payload"];
@@ -1069,7 +1071,11 @@ export class DaemonClient {
     string,
     {
       cwd: string;
-      compare: { mode: "uncommitted" | "base"; baseRef?: string; ignoreWhitespace?: boolean };
+      compare: {
+        mode: "uncommitted" | "staged" | "unstaged" | "base";
+        baseRef?: string;
+        ignoreWhitespace?: boolean;
+      };
     }
   >();
   private terminalDirectorySubscriptions = new Map<string, { cwd: string; workspaceId?: string }>();
@@ -3690,14 +3696,22 @@ export class DaemonClient {
   }
 
   private normalizeCheckoutDiffCompare(compare: {
-    mode: "uncommitted" | "base";
+    mode: "uncommitted" | "staged" | "unstaged" | "base";
     baseRef?: string;
     ignoreWhitespace?: boolean;
-  }): { mode: "uncommitted" | "base"; baseRef?: string; ignoreWhitespace?: boolean } {
-    if (compare.mode === "uncommitted") {
+  }): {
+    mode: "uncommitted" | "staged" | "unstaged" | "base";
+    baseRef?: string;
+    ignoreWhitespace?: boolean;
+  } {
+    if (
+      compare.mode === "uncommitted" ||
+      compare.mode === "staged" ||
+      compare.mode === "unstaged"
+    ) {
       return compare.ignoreWhitespace === true
-        ? { mode: "uncommitted", ignoreWhitespace: true }
-        : { mode: "uncommitted" };
+        ? { mode: compare.mode, ignoreWhitespace: true }
+        : { mode: compare.mode };
     }
     const trimmedBaseRef = compare.baseRef?.trim();
     if (!trimmedBaseRef) {
@@ -3712,7 +3726,11 @@ export class DaemonClient {
 
   async getCheckoutDiff(
     cwd: string,
-    compare: { mode: "uncommitted" | "base"; baseRef?: string; ignoreWhitespace?: boolean },
+    compare: {
+      mode: "uncommitted" | "staged" | "unstaged" | "base";
+      baseRef?: string;
+      ignoreWhitespace?: boolean;
+    },
     requestId?: string,
   ): Promise<CheckoutDiffPayload> {
     const oneShotSubscriptionId = `oneshot-checkout-diff:${crypto.randomUUID()}`;
@@ -3739,7 +3757,11 @@ export class DaemonClient {
 
   async subscribeCheckoutDiff(
     cwd: string,
-    compare: { mode: "uncommitted" | "base"; baseRef?: string; ignoreWhitespace?: boolean },
+    compare: {
+      mode: "uncommitted" | "staged" | "unstaged" | "base";
+      baseRef?: string;
+      ignoreWhitespace?: boolean;
+    },
     options?: { subscriptionId?: string; requestId?: string },
   ): Promise<SubscribeCheckoutDiffPayload> {
     const subscriptionId = options?.subscriptionId ?? crypto.randomUUID();
@@ -3792,7 +3814,7 @@ export class DaemonClient {
 
   async checkoutCommit(
     cwd: string,
-    input: { message?: string; addAll?: boolean },
+    input: { message?: string; addAll?: boolean; files?: string[] },
     requestId?: string,
   ): Promise<CheckoutCommitPayload> {
     return this.sendCorrelatedSessionRequest({
@@ -3802,8 +3824,23 @@ export class DaemonClient {
         cwd,
         message: input.message,
         addAll: input.addAll,
+        files: input.files,
       },
       responseType: "checkout_commit_response",
+    });
+  }
+
+  async checkoutGenerateCommitMessage(
+    cwd: string,
+    requestId?: string,
+  ): Promise<CheckoutGenerateCommitMessagePayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "checkout.commit_message.generate.request",
+        cwd,
+      },
+      responseType: "checkout.commit_message.generate.response",
     });
   }
 
@@ -4468,6 +4505,21 @@ export class DaemonClient {
   ): Promise<CorrelatedResponsePayload<"checkout.discard_changes.response">> {
     return this.sendNamespacedCorrelatedSessionRequest<"checkout.discard_changes.response">({
       message: { type: "checkout.discard_changes.request", cwd, paths: input.paths },
+    });
+  }
+
+  async checkoutIndexUpdate(
+    cwd: string,
+    input: { operation: "stage" | "unstage"; paths?: string[]; all?: boolean },
+  ): Promise<CorrelatedResponsePayload<"checkout.index.update.response">> {
+    return this.sendNamespacedCorrelatedSessionRequest<"checkout.index.update.response">({
+      message: {
+        type: "checkout.index.update.request",
+        cwd,
+        operation: input.operation,
+        ...(input.paths ? { paths: input.paths } : {}),
+        ...(input.all ? { all: true } : {}),
+      },
     });
   }
 

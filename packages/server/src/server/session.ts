@@ -2275,6 +2275,8 @@ export class Session {
         return this.checkoutSession.handleCheckoutRenameBranchRequest(msg);
       case "checkout_commit_request":
         return this.checkoutSession.handleCheckoutCommitRequest(msg);
+      case "checkout.commit_message.generate.request":
+        return this.checkoutSession.handleCheckoutGenerateCommitMessageRequest(msg);
       case "checkout_merge_request":
         return this.checkoutSession.handleCheckoutMergeRequest(msg);
       case "checkout_merge_from_base_request":
@@ -2287,6 +2289,8 @@ export class Session {
         return this.checkoutSession.handleRefreshRequest(msg);
       case "checkout.discard_changes.request":
         return this.checkoutSession.handleCheckoutDiscardChangesRequest(msg);
+      case "checkout.index.update.request":
+        return this.checkoutSession.handleCheckoutIndexUpdateRequest(msg);
       case "checkout_pr_create_request":
         return this.checkoutSession.handleCheckoutPrCreateRequest(msg);
       case "checkout_pr_merge_request":

@@ -16,9 +16,12 @@ import {
   Text,
   Pressable,
   FlatList,
+  PanResponder,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
+  type AccessibilityActionEvent,
+  type TextInputContentSizeChangeEventData,
   type PressableStateCallbackType,
   type FlatListProps,
   type StyleProp,
@@ -30,6 +33,7 @@ import { BORDER_WIDTH, ICON_SIZE, SPACING, type Theme } from "@/styles/theme";
 import { useIsCompactFormFactor, WORKSPACE_SECONDARY_HEADER_HEIGHT } from "@/constants/layout";
 import {
   AlignJustify,
+  Check,
   ChevronDown,
   Columns2,
   FolderTree,
@@ -37,11 +41,20 @@ import {
   ListChevronsDownUp,
   ListChevronsUpDown,
   Maximize2,
+  Minus,
   Pilcrow,
+  Plus,
   RotateCw,
+  Sparkles,
+  Undo2,
   WrapText,
 } from "lucide-react-native";
-import { type ParsedDiffFile, type DiffLine, type HighlightToken } from "@/git/use-diff-query";
+import {
+  type ParsedDiffFile,
+  type DiffLine,
+  type HighlightToken,
+  useCheckoutDiffQuery,
+} from "@/git/use-diff-query";
 import { buildDiffFlatItems, sumHeightsBefore, type DiffFlatItem } from "@/git/diff-flat-items";
 import { buildDiffTree, collectDirPaths, compressSingleChildChains } from "@/git/diff-tree";
 import { DiffFolderRow } from "@/git/diff-folder-row";
@@ -97,6 +110,8 @@ import { useToast } from "@/contexts/toast-context";
 import { useSessionStore } from "@/stores/session-store";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Button } from "@/components/ui/button";
+import { FormTextInput } from "@/components/ui/form-field";
 import { useOverlayFlatListScrollbar } from "@/components/ui/overlay-scrollbar/use-overlay-flat-list-scrollbar";
 import { inlineUnistylesStyle } from "@/styles/unistyles-inline-style";
 import { usePanelStore } from "@/stores/panel-store";
@@ -122,6 +137,15 @@ import {
 import { usePublishWorkingDiffAttachment, useWorkingDiff } from "@/git/use-working-diff";
 import { DiffTooLargeState } from "@/git/diff-too-large-state";
 import { openDesktopTarget, useDesktopOpenTargets } from "@/workspace/desktop-open-targets";
+import {
+  buildCommitDraftKey,
+  buildSelectiveCommitFiles,
+  reconcileCommitFileSelection,
+  toggleAllCommitFiles,
+  toggleCommitFileSelection,
+  useCommitComposerStore,
+  type CommitFileSelectionState,
+} from "@/git/commit-composer-store";
 
 export type { GitActionId, GitAction, GitActions } from "@/git/policy";
 
@@ -231,11 +255,367 @@ interface DiffFileSectionProps {
   onDownload?: (path: string) => void;
   onDuplicate?: (path: string) => void;
   onRevert?: (path: string, oldPath?: string) => void;
+  onIndexUpdate?: (path: string, oldPath?: string) => void;
+  indexOperation?: "stage" | "unstage";
+  isSelectedForCommit?: boolean;
+  onToggleCommitSelection?: (path: string) => void;
   onHeaderHeightChange?: (path: string, height: number) => void;
   testID?: string;
 }
 
 const EMPTY_COMMENTS: readonly ReviewDraftComment[] = [];
+const EMPTY_DIFF_FILES: ParsedDiffFile[] = [];
+const COMMIT_MESSAGE_MIN_HEIGHT = 52;
+const COMMIT_MESSAGE_MAX_HEIGHT = 180;
+const COMMIT_MESSAGE_RESIZE_STEP = 16;
+const SOURCE_CONTROL_MIN_SPLIT_RATIO = 0.18;
+const SOURCE_CONTROL_MAX_SPLIT_RATIO = 0.82;
+const SOURCE_CONTROL_RESIZE_STEP = 0.08;
+const RESIZE_ACCESSIBILITY_ACTIONS = [{ name: "increment" }, { name: "decrement" }] as const;
+const COLLAPSED_CHEVRON_STYLE = { transform: [{ rotate: "-90deg" }] } as const;
+
+function clampSourceControlSplitRatio(ratio: number): number {
+  return Math.max(SOURCE_CONTROL_MIN_SPLIT_RATIO, Math.min(SOURCE_CONTROL_MAX_SPLIT_RATIO, ratio));
+}
+const EMPTY_COMMIT_SELECTION: CommitFileSelectionState = { knownPaths: [], selectedPaths: [] };
+
+type CommitComposerFeedback =
+  | { kind: "idle" }
+  | { kind: "generating" }
+  | { kind: "generation-error"; message: string }
+  | { kind: "commit-error"; message: string };
+
+function useCommitFileSelection(cwd: string, files: readonly ParsedDiffFile[]) {
+  const availablePaths = useMemo(() => files.map((file) => file.path), [files]);
+  const [selection, setSelection] = useState<CommitFileSelectionState & { cwd: string }>(() => ({
+    cwd,
+    ...reconcileCommitFileSelection(EMPTY_COMMIT_SELECTION, availablePaths),
+  }));
+  const currentSelection = useMemo(() => {
+    const previous = selection.cwd === cwd ? selection : EMPTY_COMMIT_SELECTION;
+    return reconcileCommitFileSelection(previous, availablePaths);
+  }, [availablePaths, cwd, selection]);
+
+  const toggleFile = useCallback(
+    (path: string) => {
+      setSelection({
+        cwd,
+        knownPaths: [...availablePaths],
+        selectedPaths: toggleCommitFileSelection(currentSelection.selectedPaths, path),
+      });
+    },
+    [availablePaths, currentSelection.selectedPaths, cwd],
+  );
+  const toggleAll = useCallback(() => {
+    setSelection({
+      cwd,
+      knownPaths: [...availablePaths],
+      selectedPaths: toggleAllCommitFiles(currentSelection.selectedPaths, availablePaths),
+    });
+  }, [availablePaths, currentSelection.selectedPaths, cwd]);
+
+  return {
+    selectedPaths: currentSelection.selectedPaths,
+    toggleFile,
+    toggleAll,
+  };
+}
+
+function SelectionCheckbox({ checked }: { checked: boolean }) {
+  return (
+    <View style={[styles.selectionCheckbox, checked ? styles.selectionCheckboxChecked : null]}>
+      {checked ? <ThemedCheck size={12} uniProps={accentForegroundIconColorMapping} /> : null}
+    </View>
+  );
+}
+
+// eslint-disable-next-line complexity
+function CommitComposer({
+  serverId,
+  cwd,
+  files,
+  selectedPaths,
+  selectiveCommitSupported,
+  gitIndexSupported,
+  commitMessageGenerationSupported,
+  commitMessageGenerationKnown,
+  onToggleAll,
+}: {
+  serverId: string;
+  cwd: string;
+  files: ParsedDiffFile[];
+  selectedPaths: string[];
+  selectiveCommitSupported: boolean;
+  gitIndexSupported: boolean;
+  commitMessageGenerationSupported: boolean;
+  commitMessageGenerationKnown: boolean;
+  onToggleAll: () => void;
+}) {
+  const { t } = useTranslation();
+  const isCompact = useIsCompactFormFactor();
+  const draftKey = useMemo(() => buildCommitDraftKey(cwd), [cwd]);
+  const message = useCommitComposerStore((state) => state.draftsByCwd[draftKey] ?? "");
+  const setDraft = useCommitComposerStore((state) => state.setDraft);
+  const clearDraft = useCommitComposerStore((state) => state.clearDraft);
+  const client = useSessionStore((state) => state.sessions[serverId]?.client ?? null);
+  const commit = useCheckoutGitActionsStore((state) => state.commit);
+  const commitStatus = useCheckoutGitActionsStore((state) =>
+    state.getStatus({ serverId, cwd, actionId: "commit" }),
+  );
+  const [feedback, setFeedback] = useState<CommitComposerFeedback>({ kind: "idle" });
+  const [messageInputHeight, setMessageInputHeight] = useState(64);
+  const messageHeightManuallyResizedRef = useRef(false);
+  const messageResizeStartHeightRef = useRef(messageInputHeight);
+  const resizeCommitMessage = useCallback((nextHeight: number) => {
+    messageHeightManuallyResizedRef.current = true;
+    setMessageInputHeight(
+      Math.max(COMMIT_MESSAGE_MIN_HEIGHT, Math.min(COMMIT_MESSAGE_MAX_HEIGHT, nextHeight)),
+    );
+  }, []);
+  const messageResizePanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => {
+          messageHeightManuallyResizedRef.current = true;
+          messageResizeStartHeightRef.current = messageInputHeight;
+        },
+        onPanResponderMove: (_event, gestureState) => {
+          resizeCommitMessage(messageResizeStartHeightRef.current + gestureState.dy);
+        },
+      }),
+    [messageInputHeight, resizeCommitMessage],
+  );
+  const handleCommitMessageContentSizeChange = useCallback(
+    (event: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
+      if (messageHeightManuallyResizedRef.current) {
+        return;
+      }
+      setMessageInputHeight(
+        Math.max(
+          COMMIT_MESSAGE_MIN_HEIGHT,
+          Math.min(COMMIT_MESSAGE_MAX_HEIGHT, event.nativeEvent.contentSize.height),
+        ),
+      );
+    },
+    [],
+  );
+  const handleCommitMessageResizeAccessibilityAction = useCallback(
+    (event: AccessibilityActionEvent) => {
+      if (event.nativeEvent.actionName === "increment") {
+        resizeCommitMessage(messageInputHeight + COMMIT_MESSAGE_RESIZE_STEP);
+      } else if (event.nativeEvent.actionName === "decrement") {
+        resizeCommitMessage(messageInputHeight - COMMIT_MESSAGE_RESIZE_STEP);
+      }
+    },
+    [messageInputHeight, resizeCommitMessage],
+  );
+  useEffect(() => {
+    messageHeightManuallyResizedRef.current = false;
+    setMessageInputHeight(64);
+  }, [cwd]);
+  const commitMessageAccessibilityValue = useMemo(
+    () => ({
+      min: COMMIT_MESSAGE_MIN_HEIGHT,
+      max: COMMIT_MESSAGE_MAX_HEIGHT,
+      now: Math.round(messageInputHeight),
+    }),
+    [messageInputHeight],
+  );
+  const selectedPathSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
+  const selectedCount = files.reduce(
+    (count, file) => count + (selectedPathSet.has(file.path) ? 1 : 0),
+    0,
+  );
+  const allSelected = files.length > 0 && selectedCount === files.length;
+  const selectAllAccessibilityState = useMemo(() => ({ checked: allSelected }), [allSelected]);
+  const isGenerating = feedback.kind === "generating";
+  const isCommitting = commitStatus === "pending";
+  const trimmedMessage = message.trim();
+  const canCommit =
+    trimmedMessage.length > 0 &&
+    (gitIndexSupported ? files.length > 0 : !selectiveCommitSupported || selectedCount > 0) &&
+    !isGenerating &&
+    !isCommitting;
+
+  const handleChangeMessage = useCallback(
+    (nextMessage: string) => {
+      setDraft(cwd, nextMessage);
+      setFeedback({ kind: "idle" });
+    },
+    [cwd, setDraft],
+  );
+
+  const handleGenerate = useCallback(async () => {
+    if (!client || !commitMessageGenerationSupported || isGenerating || isCommitting) {
+      return;
+    }
+    setFeedback({ kind: "generating" });
+    try {
+      const payload = await client.checkoutGenerateCommitMessage(cwd);
+      if (payload.error) {
+        throw new Error(payload.error.message);
+      }
+      const generatedMessage = payload.message?.trim();
+      if (!generatedMessage) {
+        throw new Error(t("workspace.git.commitComposer.generationFailed"));
+      }
+      setDraft(cwd, generatedMessage);
+      setFeedback({ kind: "idle" });
+    } catch (cause) {
+      setFeedback({
+        kind: "generation-error",
+        message:
+          cause instanceof Error
+            ? cause.message
+            : t("workspace.git.commitComposer.generationFailed"),
+      });
+    }
+  }, [client, commitMessageGenerationSupported, cwd, isCommitting, isGenerating, setDraft, t]);
+
+  const handleCommit = useCallback(async () => {
+    if (!canCommit) {
+      return;
+    }
+    setFeedback({ kind: "idle" });
+    try {
+      await commit({
+        serverId,
+        cwd,
+        message: trimmedMessage,
+        addAll: gitIndexSupported ? false : undefined,
+        files:
+          !gitIndexSupported && selectiveCommitSupported
+            ? buildSelectiveCommitFiles(files, selectedPaths)
+            : undefined,
+      });
+      clearDraft(cwd);
+    } catch (cause) {
+      setFeedback({
+        kind: "commit-error",
+        message:
+          cause instanceof Error ? cause.message : t("workspace.git.commitComposer.commitFailed"),
+      });
+    }
+  }, [
+    canCommit,
+    clearDraft,
+    commit,
+    cwd,
+    files,
+    gitIndexSupported,
+    selectedPaths,
+    selectiveCommitSupported,
+    serverId,
+    t,
+    trimmedMessage,
+  ]);
+
+  let commitLabel = t("workspace.git.actions.commit.label");
+  if (commitStatus === "success") {
+    commitLabel = t("workspace.git.actions.commit.success");
+  } else if (isCommitting) {
+    commitLabel = t("workspace.git.actions.commit.pending");
+  }
+  const feedbackMessage =
+    feedback.kind === "generation-error" || feedback.kind === "commit-error"
+      ? feedback.message
+      : null;
+
+  return (
+    <View style={styles.commitComposer} testID="changes-commit-composer">
+      <FormTextInput
+        size={isCompact ? "md" : "sm"}
+        accessibilityLabel={t("workspace.git.commitComposer.messageLabel")}
+        testID="changes-commit-message"
+        multiline
+        numberOfLines={2}
+        value={message}
+        onChangeText={handleChangeMessage}
+        onContentSizeChange={handleCommitMessageContentSizeChange}
+        placeholder={t("workspace.git.commitComposer.placeholder")}
+        style={[styles.commitMessageInput, { height: messageInputHeight }]}
+      />
+      <View
+        {...messageResizePanResponder.panHandlers}
+        accessibilityRole="adjustable"
+        accessibilityLabel={t("workspace.git.commitComposer.messageLabel")}
+        accessibilityValue={commitMessageAccessibilityValue}
+        accessibilityActions={RESIZE_ACCESSIBILITY_ACTIONS}
+        onAccessibilityAction={handleCommitMessageResizeAccessibilityAction}
+        testID="changes-commit-message-resize"
+        style={styles.commitMessageResizeHandle}
+      >
+        <View style={styles.resizeHandleGrip} />
+      </View>
+      <View style={styles.commitComposerFooter}>
+        {!gitIndexSupported && selectiveCommitSupported ? (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityLabel={t("workspace.git.commitComposer.selectAll")}
+            accessibilityState={selectAllAccessibilityState}
+            testID="changes-select-all"
+            onPress={onToggleAll}
+            style={styles.selectAllControl}
+          >
+            <SelectionCheckbox checked={allSelected} />
+            <Text style={styles.selectAllText}>
+              {t("workspace.git.commitComposer.selectedCount", {
+                count: selectedCount,
+                total: files.length,
+              })}
+            </Text>
+          </Pressable>
+        ) : (
+          <View style={styles.commitComposerSpacer} />
+        )}
+        <View style={styles.commitComposerActions}>
+          {commitMessageGenerationSupported ? (
+            <Button
+              variant="secondary"
+              size="xs"
+              leftIcon={Sparkles}
+              disabled={!client || isCommitting}
+              loading={isGenerating}
+              testID="changes-generate-commit-message"
+              onPress={handleGenerate}
+            >
+              {isGenerating
+                ? t("workspace.git.commitComposer.generating")
+                : t("workspace.git.commitComposer.generate")}
+            </Button>
+          ) : null}
+          <Button
+            variant="default"
+            size="xs"
+            disabled={!canCommit}
+            loading={isCommitting}
+            testID="changes-commit"
+            onPress={handleCommit}
+          >
+            {commitLabel}
+          </Button>
+        </View>
+      </View>
+      {commitMessageGenerationKnown && !commitMessageGenerationSupported ? (
+        <Text style={styles.commitComposerHint} testID="changes-generate-unsupported">
+          {t("workspace.git.commitComposer.generationUnsupported")}
+        </Text>
+      ) : null}
+      {gitIndexSupported && files.length === 0 ? (
+        <Text style={styles.commitComposerHint}>
+          {t("workspace.git.sourceControl.stageBeforeCommit")}
+        </Text>
+      ) : null}
+      {feedbackMessage ? (
+        <Text style={styles.commitComposerError} testID="changes-commit-error">
+          {feedbackMessage}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 function noopStartComment(): void {}
 
@@ -288,6 +668,125 @@ function useDiscardChangesAction({
     [discardPath],
   );
   return discardSupported && diffMode === "uncommitted" ? handleDiscardPath : undefined;
+}
+
+function useCheckoutIndexAction({
+  serverId,
+  cwd,
+  operation,
+}: {
+  serverId: string;
+  cwd: string;
+  operation: "stage" | "unstage";
+}): ((path: string, oldPath?: string) => void) | undefined {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const supported = useSessionStore(
+    (s) => s.sessions[serverId]?.serverInfo?.features?.checkoutGitIndex === true,
+  );
+  const updateIndex = useCheckoutGitActionsStore((state) =>
+    operation === "stage" ? state.stage : state.unstage,
+  );
+  return useCallback(
+    (path: string, oldPath?: string) => {
+      if (!supported) {
+        return;
+      }
+      void updateIndex({
+        serverId,
+        cwd,
+        paths: oldPath ? [path, oldPath] : [path],
+      }).catch((cause) => {
+        toast.error(
+          cause instanceof Error
+            ? cause.message
+            : t("workspace.git.sourceControl.indexUpdateFailed"),
+        );
+      });
+    },
+    [cwd, serverId, supported, t, toast, updateIndex],
+  );
+}
+
+function useCheckoutSourceControlCapabilities(serverId: string) {
+  const serverInfo = useSessionStore((state) => state.sessions[serverId]?.serverInfo);
+  return {
+    refreshSupported: serverInfo?.features?.checkoutRefresh === true,
+    // COMPAT(checkoutSelectiveCommit): added in v0.4.0, remove gate after 2027-02-17.
+    selectiveCommitSupported: serverInfo?.features?.checkoutSelectiveCommit === true,
+    gitIndexSupported: serverInfo?.features?.checkoutGitIndex === true,
+    // COMPAT(checkoutCommitMessageGeneration): added in v0.4.0, remove gate after 2027-02-17.
+    commitMessageGenerationSupported:
+      serverInfo?.features?.checkoutCommitMessageGeneration === true,
+    commitMessageGenerationKnown: serverInfo !== undefined,
+  };
+}
+
+function buildCommitSelectionModeProps(input: {
+  supported: boolean;
+  diffMode: "uncommitted" | "base";
+  selectedPaths: string[];
+  onToggle: (path: string) => void;
+}): {
+  selectedCommitPaths?: string[];
+  onToggleCommitSelection?: (path: string) => void;
+} {
+  if (!input.supported || input.diffMode !== "uncommitted") {
+    return {};
+  }
+  return {
+    selectedCommitPaths: input.selectedPaths,
+    onToggleCommitSelection: input.onToggle,
+  };
+}
+
+function shouldShowCommitComposer(input: {
+  isGit: boolean;
+  diffMode: "uncommitted" | "base";
+  hasChanges: boolean;
+}): boolean {
+  return input.isGit && input.diffMode === "uncommitted" && input.hasChanges;
+}
+
+function CommitComposerSlot({
+  visible,
+  serverId,
+  cwd,
+  files,
+  selectedPaths,
+  selectiveCommitSupported,
+  gitIndexSupported,
+  commitMessageGenerationSupported,
+  commitMessageGenerationKnown,
+  onToggleAll,
+}: {
+  visible: boolean;
+  serverId: string;
+  cwd: string;
+  files: ParsedDiffFile[];
+  selectedPaths: string[];
+  selectiveCommitSupported: boolean;
+  gitIndexSupported: boolean;
+  commitMessageGenerationSupported: boolean;
+  commitMessageGenerationKnown: boolean;
+  onToggleAll: () => void;
+}) {
+  if (!visible) {
+    return null;
+  }
+  return (
+    <CommitComposer
+      serverId={serverId}
+      cwd={cwd}
+      files={files}
+      selectedPaths={selectedPaths}
+      selectiveCommitSupported={selectiveCommitSupported}
+      gitIndexSupported={gitIndexSupported}
+      commitMessageGenerationSupported={commitMessageGenerationSupported}
+      commitMessageGenerationKnown={commitMessageGenerationKnown}
+      onToggleAll={onToggleAll}
+    />
+  );
 }
 
 const DIFF_LINE_HOVER_STYLE = isWeb ? ({ cursor: "auto" } as const) : null;
@@ -1039,6 +1538,157 @@ function DiffFileActionsContextMenuContent({
   );
 }
 
+function getDiffFileInlineControlsWidth(input: {
+  isSelectedForCommit?: boolean;
+  onToggleCommitSelection?: (path: string) => void;
+  onRevert?: (path: string, oldPath?: string) => void;
+  onIndexUpdate?: (path: string, oldPath?: string) => void;
+}): number {
+  const showCommitSelection =
+    input.isSelectedForCommit !== undefined && input.onToggleCommitSelection !== undefined;
+  return (
+    (showCommitSelection ? 28 : 0) + (input.onIndexUpdate ? 28 : 0) + (input.onRevert ? 28 : 0)
+  );
+}
+
+function shouldShowDiscardAction(input: {
+  isHovered: boolean;
+  isCompact: boolean;
+  hasIndexAction: boolean;
+}): boolean {
+  return input.isHovered || isNative || input.isCompact || input.hasIndexAction;
+}
+
+function DiffFileInlineControls({
+  file,
+  isSelectedForCommit,
+  onToggleCommitSelection,
+  onRevert,
+  onIndexUpdate,
+  indexOperation,
+  discardVisible,
+  testID,
+}: Pick<
+  DiffFileSectionProps,
+  | "file"
+  | "isSelectedForCommit"
+  | "onToggleCommitSelection"
+  | "onRevert"
+  | "onIndexUpdate"
+  | "indexOperation"
+  | "testID"
+> & { discardVisible: boolean }) {
+  const { t } = useTranslation();
+  const showCommitSelection =
+    isSelectedForCommit !== undefined && onToggleCommitSelection !== undefined;
+  const inlineControlsWidth = getDiffFileInlineControlsWidth({
+    isSelectedForCommit,
+    onToggleCommitSelection,
+    onRevert,
+    onIndexUpdate,
+  });
+  const selectionAccessibilityState = useMemo(
+    () => ({ checked: isSelectedForCommit }),
+    [isSelectedForCommit],
+  );
+  const handleToggleCommitSelection = useCallback(
+    () => onToggleCommitSelection?.(file.path),
+    [file.path, onToggleCommitSelection],
+  );
+  const handleInlineRevert = useCallback(
+    () => onRevert?.(file.path, file.oldPath),
+    [file.oldPath, file.path, onRevert],
+  );
+  const handleIndexUpdate = useCallback(
+    () => onIndexUpdate?.(file.path, file.oldPath),
+    [file.oldPath, file.path, onIndexUpdate],
+  );
+
+  if (inlineControlsWidth === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.fileInlineControls}>
+      {showCommitSelection ? (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={t("workspace.git.commitComposer.includeFile", {
+            path: file.path,
+          })}
+          accessibilityState={selectionAccessibilityState}
+          aria-checked={isSelectedForCommit}
+          testID={testID ? `${testID}-select` : undefined}
+          onPress={handleToggleCommitSelection}
+          style={styles.fileInlineControlButton}
+        >
+          <SelectionCheckbox checked={isSelectedForCommit} />
+        </Pressable>
+      ) : null}
+      {onIndexUpdate ? (
+        <View style={styles.fileInlineControlSlot}>
+          <Tooltip delayDuration={300} enabledOnDesktop enabledOnMobile={false}>
+            <TooltipTrigger asChild>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  indexOperation === "unstage"
+                    ? t("workspace.git.sourceControl.unstageFile", { path: file.path })
+                    : t("workspace.git.sourceControl.stageFile", { path: file.path })
+                }
+                testID={testID ? `${testID}-${indexOperation}` : undefined}
+                onPress={handleIndexUpdate}
+                style={styles.fileInlineControlButton}
+              >
+                {indexOperation === "unstage" ? (
+                  <ThemedMinus size={14} uniProps={foregroundMutedIconColorMapping} />
+                ) : (
+                  <ThemedPlus size={14} uniProps={foregroundMutedIconColorMapping} />
+                )}
+              </Pressable>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <Text style={styles.tooltipText}>
+                {indexOperation === "unstage"
+                  ? t("workspace.git.sourceControl.unstage")
+                  : t("workspace.git.sourceControl.stage")}
+              </Text>
+            </TooltipContent>
+          </Tooltip>
+        </View>
+      ) : null}
+      {onRevert ? (
+        <View
+          pointerEvents={discardVisible ? "auto" : "none"}
+          style={[
+            styles.fileInlineControlSlot,
+            discardVisible ? styles.fileInlineControlVisible : styles.fileInlineControlHidden,
+          ]}
+        >
+          <Tooltip delayDuration={300} enabledOnDesktop enabledOnMobile={false}>
+            <TooltipTrigger asChild>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("workspace.git.commitComposer.discardFile", {
+                  path: file.path,
+                })}
+                testID={testID ? `${testID}-discard` : undefined}
+                onPress={handleInlineRevert}
+                style={styles.fileInlineControlButton}
+              >
+                <ThemedUndo2 size={14} uniProps={foregroundMutedIconColorMapping} />
+              </Pressable>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <Text style={styles.tooltipText}>{t("workspace.fileActions.revert")}</Text>
+            </TooltipContent>
+          </Tooltip>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const DiffFileHeader = memo(function DiffFileHeader({
   file,
   workspaceFileDragScope,
@@ -1058,9 +1708,15 @@ const DiffFileHeader = memo(function DiffFileHeader({
   onDownload,
   onDuplicate,
   onRevert,
+  onIndexUpdate,
+  indexOperation,
+  isSelectedForCommit,
+  onToggleCommitSelection,
   onHeaderHeightChange,
   testID,
 }: DiffFileSectionProps) {
+  const isCompact = useIsCompactFormFactor();
+  const [isHovered, setIsHovered] = useState(false);
   const dragSourceRef = useWorkspaceFileDragSource({
     enabled: interactive,
     disabled: file.isDeleted,
@@ -1071,6 +1727,20 @@ const DiffFileHeader = memo(function DiffFileHeader({
   const layoutYRef = useRef<number | null>(null);
   const pressHandledRef = useRef(false);
   const pressInRef = useRef<{ ts: number; pageX: number; pageY: number } | null>(null);
+  const discardVisible = shouldShowDiscardAction({
+    isHovered,
+    isCompact,
+    hasIndexAction: onIndexUpdate !== undefined,
+  });
+  const inlineControlsWidth = getDiffFileInlineControlsWidth({
+    isSelectedForCommit,
+    onToggleCommitSelection,
+    onRevert,
+    onIndexUpdate,
+  });
+
+  const handlePointerEnter = useCallback(() => setIsHovered(true), []);
+  const handlePointerLeave = useCallback(() => setIsHovered(false), []);
 
   const handleSelect = useCallback(() => {
     if (interactive) {
@@ -1149,9 +1819,21 @@ const DiffFileHeader = memo(function DiffFileHeader({
         ? [
             fileHeaderPressableStyle(state, isSelected),
             inlineUnistylesStyle({ paddingLeft: treeRowPaddingLeft(depth) }),
+            inlineControlsWidth > 0
+              ? inlineUnistylesStyle({
+                  paddingRight: WORKSPACE_FILE_ROW_TRAILING_PADDING + inlineControlsWidth,
+                })
+              : null,
           ]
-        : fileHeaderPressableStyle(state, isSelected),
-    [depth, isSelected],
+        : [
+            fileHeaderPressableStyle(state, isSelected),
+            inlineControlsWidth > 0
+              ? inlineUnistylesStyle({
+                  paddingRight: WORKSPACE_FILE_ROW_TRAILING_PADDING + inlineControlsWidth,
+                })
+              : null,
+          ],
+    [depth, inlineControlsWidth, isSelected],
   );
 
   const fileName = file.path.split("/").pop() ?? file.path;
@@ -1224,7 +1906,13 @@ const DiffFileHeader = memo(function DiffFileHeader({
   }
 
   return (
-    <View style={containerStyle} onLayout={handleLayout} testID={testID}>
+    <View
+      style={containerStyle}
+      onLayout={handleLayout}
+      onPointerEnter={isWeb ? handlePointerEnter : undefined}
+      onPointerLeave={isWeb ? handlePointerLeave : undefined}
+      testID={testID}
+    >
       <TreeIndentGuides depth={depth} />
       <ContextMenu>
         <Tooltip delayDuration={300} enabledOnDesktop enabledOnMobile={false}>
@@ -1249,6 +1937,16 @@ const DiffFileHeader = memo(function DiffFileHeader({
           />
         ) : null}
       </ContextMenu>
+      <DiffFileInlineControls
+        file={file}
+        isSelectedForCommit={isSelectedForCommit}
+        onToggleCommitSelection={onToggleCommitSelection}
+        onRevert={onRevert}
+        onIndexUpdate={onIndexUpdate}
+        indexOperation={indexOperation}
+        discardVisible={discardVisible}
+        testID={testID}
+      />
     </View>
   );
 });
@@ -1455,9 +2153,13 @@ type PressableStyleFn = (
 ) => StyleProp<ViewStyle>;
 
 const foregroundMutedIconColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
+const accentForegroundIconColorMapping = (theme: Theme) => ({
+  color: theme.colors.accentForeground,
+});
 
 const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
 const ThemedAlignJustify = withUnistyles(AlignJustify);
+const ThemedCheck = withUnistyles(Check);
 const ThemedColumns2 = withUnistyles(Columns2);
 const ThemedPilcrow = withUnistyles(Pilcrow);
 const ThemedWrapText = withUnistyles(WrapText);
@@ -1467,6 +2169,9 @@ const ThemedFolderTree = withUnistyles(FolderTree);
 const ThemedList = withUnistyles(List);
 const ThemedMaximize2 = withUnistyles(Maximize2);
 const ThemedChevronDown = withUnistyles(ChevronDown);
+const ThemedUndo2 = withUnistyles(Undo2);
+const ThemedPlus = withUnistyles(Plus);
+const ThemedMinus = withUnistyles(Minus);
 const DIFF_OPTIONS_WHITESPACE_ICON = (
   <ThemedPilcrow size={14} uniProps={foregroundMutedIconColorMapping} />
 );
@@ -1981,6 +2686,11 @@ interface SharedDiffViewProps {
         onDownload?: (path: string) => void;
         onDuplicate?: (path: string) => void;
         onRevert?: (path: string, oldPath?: string) => void;
+        onIndexUpdate?: (path: string, oldPath?: string) => void;
+        indexOperation?: "stage" | "unstage";
+        testIDPrefix?: string;
+        selectedCommitPaths?: string[];
+        onToggleCommitSelection?: (path: string) => void;
         onExpandedPathsChange: (paths: string[]) => void;
         onCollapsedFoldersChange: (paths: string[]) => void;
       }
@@ -1997,6 +2707,7 @@ interface SharedDiffViewProps {
       };
 }
 
+// eslint-disable-next-line complexity
 export function SharedDiffView({ files, displayPreferences, mode }: SharedDiffViewProps) {
   const isCompact = useIsCompactFormFactor();
   const { layout, wrapLines, codeFontSize, monoFontFamily } = displayPreferences;
@@ -2041,6 +2752,16 @@ export function SharedDiffView({ files, displayPreferences, mode }: SharedDiffVi
   const onDownload = mode.kind === "working_tree" ? mode.onDownload : undefined;
   const onDuplicate = mode.kind === "working_tree" ? mode.onDuplicate : undefined;
   const onRevert = mode.kind === "working_tree" ? mode.onRevert : undefined;
+  const onIndexUpdate = mode.kind === "working_tree" ? mode.onIndexUpdate : undefined;
+  const indexOperation = mode.kind === "working_tree" ? mode.indexOperation : undefined;
+  const testIDPrefix = mode.kind === "working_tree" ? (mode.testIDPrefix ?? "diff") : "diff";
+  const selectedCommitPaths = mode.kind === "working_tree" ? mode.selectedCommitPaths : undefined;
+  const selectedCommitPathSet = useMemo(
+    () => (selectedCommitPaths ? new Set(selectedCommitPaths) : undefined),
+    [selectedCommitPaths],
+  );
+  const onToggleCommitSelection =
+    mode.kind === "working_tree" ? mode.onToggleCommitSelection : undefined;
   // Keep selection independent from expansion so future keyboard actions (such as R to rename)
   // can target the current VCS file or folder without changing its open state.
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -2408,7 +3129,7 @@ export function SharedDiffView({ files, displayPreferences, mode }: SharedDiffVi
             revealTargetName={revealTargetName}
             onDuplicate={onDuplicate}
             onRevert={onRevert}
-            testID={`diff-folder-${item.dirPath}`}
+            testID={`${testIDPrefix}-folder-${item.dirPath}`}
           />
         );
       }
@@ -2433,8 +3154,14 @@ export function SharedDiffView({ files, displayPreferences, mode }: SharedDiffVi
             onDownload={onDownload}
             onDuplicate={onDuplicate}
             onRevert={onRevert}
+            onIndexUpdate={onIndexUpdate}
+            indexOperation={indexOperation}
+            isSelectedForCommit={
+              selectedCommitPathSet ? selectedCommitPathSet.has(item.file.path) : undefined
+            }
+            onToggleCommitSelection={onToggleCommitSelection}
             onHeaderHeightChange={handleHeaderHeightChange}
-            testID={`diff-file-${item.fileIndex}`}
+            testID={`${testIDPrefix}-file-${item.fileIndex}`}
           />
         );
       }
@@ -2447,7 +3174,7 @@ export function SharedDiffView({ files, displayPreferences, mode }: SharedDiffVi
           textMetricsStyle={textMetricsStyle}
           reviewActions={reviewActions}
           onBodyHeightChange={handleBodyHeightChange}
-          testID={`diff-file-${item.fileIndex}-body`}
+          testID={`${testIDPrefix}-file-${item.fileIndex}-body`}
         />
       );
     },
@@ -2477,7 +3204,12 @@ export function SharedDiffView({ files, displayPreferences, mode }: SharedDiffVi
       onDownload,
       onDuplicate,
       onRevert,
+      onIndexUpdate,
+      indexOperation,
+      onToggleCommitSelection,
+      selectedCommitPathSet,
       selectedPath,
+      testIDPrefix,
     ],
   );
 
@@ -2508,6 +3240,7 @@ export function SharedDiffView({ files, displayPreferences, mode }: SharedDiffVi
       wrapLines,
       reviewActions,
       workspaceFileDragScope,
+      selectedCommitPaths,
     }),
     [
       expandedPathsArray,
@@ -2518,6 +3251,7 @@ export function SharedDiffView({ files, displayPreferences, mode }: SharedDiffVi
       typographyKey,
       viewMode,
       workspaceFileDragScope,
+      selectedCommitPaths,
       wrapLines,
     ],
   );
@@ -2840,6 +3574,7 @@ function useDiffTabNavigation({
   };
 }
 
+// eslint-disable-next-line complexity
 export function GitDiffPane({
   serverId,
   workspaceId,
@@ -2899,9 +3634,13 @@ export function GitDiffPane({
     openCommit: handleCommitPress,
     onChangesFilePress,
   } = useDiffTabNavigation({ serverId, workspaceId, cwd, isMobile });
-  const refreshSupported = useSessionStore(
-    (s) => s.sessions[serverId]?.serverInfo?.features?.checkoutRefresh === true,
-  );
+  const {
+    refreshSupported,
+    selectiveCommitSupported,
+    gitIndexSupported,
+    commitMessageGenerationSupported,
+    commitMessageGenerationKnown,
+  } = useCheckoutSourceControlCapabilities(serverId);
   const client = useSessionStore((state) => state.sessions[serverId]?.client);
   // COMPAT(fsEntryDuplicate): added in v0.3.0, remove gate after 2027-02-09.
   const fsEntryDuplicateEnabled = useSessionStore(
@@ -2945,6 +3684,110 @@ export function GitDiffPane({
     ignoreWhitespace: changesPreferences.hideWhitespace,
     enabled: enabled !== false,
   });
+  const indexDiffEnabled = gitIndexSupported && diffMode === "uncommitted";
+  const stagedDiff = useCheckoutDiffQuery({
+    serverId,
+    cwd,
+    mode: "staged",
+    ignoreWhitespace: changesPreferences.hideWhitespace,
+    enabled: enabled !== false && isGit && indexDiffEnabled,
+  });
+  const unstagedDiff = useCheckoutDiffQuery({
+    serverId,
+    cwd,
+    mode: "unstaged",
+    ignoreWhitespace: changesPreferences.hideWhitespace,
+    enabled: enabled !== false && isGit && indexDiffEnabled,
+  });
+  const stagedFiles = useMemo(
+    () => (indexDiffEnabled ? stagedDiff.files : EMPTY_DIFF_FILES),
+    [indexDiffEnabled, stagedDiff.files],
+  );
+  const displayFiles = useMemo(
+    () => (indexDiffEnabled ? unstagedDiff.files : files),
+    [files, indexDiffEnabled, unstagedDiff.files],
+  );
+  const [stagedSectionCollapsed, setStagedSectionCollapsed] = useState(false);
+  const [unstagedSectionCollapsed, setUnstagedSectionCollapsed] = useState(false);
+  const [sourceControlHeight, setSourceControlHeight] = useState(0);
+  const [sourceControlSplitOverride, setSourceControlSplitOverride] = useState<number | null>(null);
+  const sourceControlOpenStaged =
+    indexDiffEnabled && !stagedSectionCollapsed && stagedFiles.length > 0;
+  const sourceControlOpenUnstaged =
+    indexDiffEnabled && !unstagedSectionCollapsed && displayFiles.length > 0;
+  const sourceControlSplitStartRef = useRef(0.5);
+  const automaticSourceControlSplit = useMemo(() => {
+    const stagedWeight = Math.max(1, Math.min(stagedFiles.length, 8));
+    const unstagedWeight = Math.max(1, Math.min(displayFiles.length, 8));
+    return clampSourceControlSplitRatio(stagedWeight / (stagedWeight + unstagedWeight));
+  }, [displayFiles.length, stagedFiles.length]);
+  const sourceControlSplit = sourceControlSplitOverride ?? automaticSourceControlSplit;
+  const sourceControlDividerPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => {
+          sourceControlSplitStartRef.current = sourceControlSplit;
+        },
+        onPanResponderMove: (_event, gestureState) => {
+          if (sourceControlHeight <= 0) {
+            return;
+          }
+          setSourceControlSplitOverride(
+            clampSourceControlSplitRatio(
+              sourceControlSplitStartRef.current + gestureState.dy / sourceControlHeight,
+            ),
+          );
+        },
+      }),
+    [sourceControlHeight, sourceControlSplit],
+  );
+  const handleSourceControlResizeAccessibilityAction = useCallback(
+    (event: AccessibilityActionEvent) => {
+      if (event.nativeEvent.actionName === "increment") {
+        setSourceControlSplitOverride(
+          clampSourceControlSplitRatio(sourceControlSplit + SOURCE_CONTROL_RESIZE_STEP),
+        );
+      } else if (event.nativeEvent.actionName === "decrement") {
+        setSourceControlSplitOverride(
+          clampSourceControlSplitRatio(sourceControlSplit - SOURCE_CONTROL_RESIZE_STEP),
+        );
+      }
+    },
+    [sourceControlSplit],
+  );
+  const sourceControlLayout = useCallback(
+    (event: LayoutChangeEvent) => setSourceControlHeight(event.nativeEvent.layout.height),
+    [],
+  );
+  const stagedSectionAccessibilityState = useMemo(
+    () => ({ expanded: sourceControlOpenStaged }),
+    [sourceControlOpenStaged],
+  );
+  const unstagedSectionAccessibilityState = useMemo(
+    () => ({ expanded: sourceControlOpenUnstaged }),
+    [sourceControlOpenUnstaged],
+  );
+  const sourceControlAccessibilityValue = useMemo(
+    () => ({
+      min: Math.round(SOURCE_CONTROL_MIN_SPLIT_RATIO * 100),
+      max: Math.round(SOURCE_CONTROL_MAX_SPLIT_RATIO * 100),
+      now: Math.round(sourceControlSplit * 100),
+    }),
+    [sourceControlSplit],
+  );
+  const toggleStagedSection = useCallback(
+    () => setStagedSectionCollapsed((collapsed) => !collapsed),
+    [],
+  );
+  const toggleUnstagedSection = useCallback(
+    () => setUnstagedSectionCollapsed((collapsed) => !collapsed),
+    [],
+  );
+  const stagedGroupFlex = sourceControlOpenStaged ? sourceControlSplit : 0;
+  const unstagedGroupFlex = sourceControlOpenUnstaged ? 1 - sourceControlSplit : 0;
+  const commitSelection = useCommitFileSelection(cwd, displayFiles);
   usePublishWorkingDiffAttachment({
     serverId,
     workspaceId: workspaceId ?? undefined,
@@ -2989,7 +3832,15 @@ export function GitDiffPane({
   const changesTree = useChangesTreeState({
     workspaceId,
     cwd,
-    files,
+    files: displayFiles,
+    viewMode,
+    changesTabOpen,
+    onViewModeChange: handleViewModeChange,
+  });
+  const stagedTree = useChangesTreeState({
+    workspaceId: workspaceId ? `${workspaceId}:staged` : undefined,
+    cwd: `${cwd}:staged`,
+    files: stagedFiles,
     viewMode,
     changesTabOpen,
     onViewModeChange: handleViewModeChange,
@@ -3057,6 +3908,42 @@ export function GitDiffPane({
     [client, cwd, t, toast],
   );
   const onRevertPath = useDiscardChangesAction({ serverId, cwd, diffMode });
+  const onStagePath = useCheckoutIndexAction({ serverId, cwd, operation: "stage" });
+  const onUnstagePath = useCheckoutIndexAction({ serverId, cwd, operation: "unstage" });
+  const stage = useCheckoutGitActionsStore((state) => state.stage);
+  const unstage = useCheckoutGitActionsStore((state) => state.unstage);
+  const handleStageAll = useCallback(() => {
+    if (displayFiles.length === 0) return;
+    void stage({
+      serverId,
+      cwd,
+      all: true,
+    }).catch((cause) => toast.error(cause instanceof Error ? cause.message : String(cause)));
+  }, [cwd, displayFiles.length, serverId, stage, toast]);
+  const handleUnstageAll = useCallback(() => {
+    if (stagedFiles.length === 0) return;
+    void unstage({
+      serverId,
+      cwd,
+      all: true,
+    }).catch((cause) => toast.error(cause instanceof Error ? cause.message : String(cause)));
+  }, [cwd, serverId, stagedFiles.length, toast, unstage]);
+  const commitSelectionModeProps = useMemo(
+    () =>
+      buildCommitSelectionModeProps({
+        supported: selectiveCommitSupported && !gitIndexSupported,
+        diffMode,
+        selectedPaths: commitSelection.selectedPaths,
+        onToggle: commitSelection.toggleFile,
+      }),
+    [
+      diffMode,
+      gitIndexSupported,
+      selectiveCommitSupported,
+      commitSelection.selectedPaths,
+      commitSelection.toggleFile,
+    ],
+  );
   const workingTreeMode = useMemo(
     () => ({
       kind: "working_tree" as const,
@@ -3075,6 +3962,9 @@ export function GitDiffPane({
       onDownload: handleDownloadPath,
       onDuplicate: fsEntryDuplicateEnabled ? handleDuplicatePath : undefined,
       onRevert: onRevertPath,
+      onIndexUpdate: onStagePath,
+      indexOperation: "stage" as const,
+      ...commitSelectionModeProps,
       onExpandedPathsChange: changesTree.updateExpandedPaths,
       onCollapsedFoldersChange: changesTree.updateCollapsedFolders,
     }),
@@ -3096,12 +3986,42 @@ export function GitDiffPane({
       fileManagerTarget,
       fsEntryDuplicateEnabled,
       onRevertPath,
+      onStagePath,
+      commitSelectionModeProps,
       changesTree.updateExpandedPaths,
       changesTree.updateCollapsedFolders,
     ],
   );
 
-  const hasChanges = files.length > 0;
+  const stagedMode = useMemo(
+    () => ({
+      ...workingTreeMode,
+      expandedPaths: stagedTree.expandedPaths,
+      collapsedFolders: stagedTree.collapsedFolders,
+      reviewActions: undefined,
+      onRevert: undefined,
+      onIndexUpdate: onUnstagePath,
+      indexOperation: "unstage" as const,
+      testIDPrefix: "staged-diff",
+      selectedCommitPaths: undefined,
+      onToggleCommitSelection: undefined,
+      onExpandedPathsChange: stagedTree.updateExpandedPaths,
+      onCollapsedFoldersChange: stagedTree.updateCollapsedFolders,
+    }),
+    [
+      onUnstagePath,
+      stagedTree.collapsedFolders,
+      stagedTree.expandedPaths,
+      stagedTree.updateCollapsedFolders,
+      stagedTree.updateExpandedPaths,
+      workingTreeMode,
+    ],
+  );
+
+  const hasChanges = indexDiffEnabled
+    ? stagedFiles.length > 0 || displayFiles.length > 0
+    : files.length > 0;
+  const commitComposerVisible = shouldShowCommitComposer({ isGit, diffMode, hasChanges });
   const diffErrorMessage = diffPayloadError?.message ?? null;
   const prErrorMessage = computePrErrorMessage(githubFeaturesEnabled, prPayloadError);
   const baseRefLabel = useMemo(
@@ -3133,19 +4053,148 @@ export function GitDiffPane({
       isStatusLoading={isStatusLoading}
       statusErrorMessage={statusErrorMessage}
       notGit={notGit}
-      isDiffLoading={isDiffLoading}
-      diffErrorMessage={diffErrorMessage}
-      diffTooLarge={diffTooLarge}
+      isDiffLoading={
+        indexDiffEnabled ? stagedDiff.isLoading || unstagedDiff.isLoading : isDiffLoading
+      }
+      diffErrorMessage={
+        indexDiffEnabled
+          ? (stagedDiff.payloadError?.message ?? unstagedDiff.payloadError?.message ?? null)
+          : diffErrorMessage
+      }
+      diffTooLarge={
+        indexDiffEnabled
+          ? Boolean(stagedDiff.diffTooLarge || unstagedDiff.diffTooLarge)
+          : diffTooLarge
+      }
       hasChanges={hasChanges}
       emptyMessage={emptyMessage}
       checkingRepositoryLabel={t("workspace.git.diff.checkingRepository")}
       notRepositoryLabel={t("workspace.git.diff.notRepository")}
     >
-      <SharedDiffView
-        files={files}
-        displayPreferences={sharedDisplayPreferences}
-        mode={workingTreeMode}
-      />
+      {indexDiffEnabled ? (
+        <View style={styles.sourceControlGroups} onLayout={sourceControlLayout}>
+          <View
+            style={[
+              styles.sourceControlGroup,
+              {
+                flexGrow: sourceControlOpenStaged ? stagedGroupFlex : 0,
+                flexBasis: sourceControlOpenStaged ? 0 : 36,
+              },
+            ]}
+            testID="changes-staged-section"
+          >
+            <View style={styles.sourceControlGroupHeader}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={stagedSectionAccessibilityState}
+                disabled={stagedFiles.length === 0}
+                onPress={toggleStagedSection}
+                style={styles.sourceControlGroupTitleButton}
+                testID="changes-staged-toggle"
+              >
+                <ThemedChevronDown
+                  size={14}
+                  uniProps={foregroundMutedIconColorMapping}
+                  style={sourceControlOpenStaged ? undefined : COLLAPSED_CHEVRON_STYLE}
+                />
+                <Text style={styles.sourceControlGroupTitle}>
+                  {t("workspace.git.sourceControl.staged")}
+                </Text>
+                <Text style={styles.sourceControlGroupCount}>{stagedFiles.length}</Text>
+              </Pressable>
+              <Button
+                variant="secondary"
+                size="xs"
+                leftIcon={Minus}
+                disabled={stagedFiles.length === 0}
+                onPress={handleUnstageAll}
+                testID="changes-unstage-all"
+              >
+                {t("workspace.git.sourceControl.unstageAll")}
+              </Button>
+            </View>
+            {sourceControlOpenStaged ? (
+              <View style={styles.sourceControlGroupBody}>
+                <SharedDiffView
+                  files={stagedFiles}
+                  displayPreferences={sharedDisplayPreferences}
+                  mode={stagedMode}
+                />
+              </View>
+            ) : null}
+          </View>
+          {sourceControlOpenStaged && sourceControlOpenUnstaged ? (
+            <View
+              {...sourceControlDividerPanResponder.panHandlers}
+              accessibilityRole="adjustable"
+              accessibilityLabel={t("workspace.git.sourceControl.resizeSections")}
+              accessibilityValue={sourceControlAccessibilityValue}
+              accessibilityActions={RESIZE_ACCESSIBILITY_ACTIONS}
+              onAccessibilityAction={handleSourceControlResizeAccessibilityAction}
+              style={styles.sourceControlDivider}
+              testID="changes-source-control-divider"
+            >
+              <View style={styles.resizeHandleGrip} />
+            </View>
+          ) : null}
+          <View
+            style={[
+              styles.sourceControlGroup,
+              {
+                flexGrow: sourceControlOpenUnstaged ? unstagedGroupFlex : 0,
+                flexBasis: sourceControlOpenUnstaged ? 0 : 36,
+              },
+            ]}
+            testID="changes-unstaged-section"
+          >
+            <View style={styles.sourceControlGroupHeader}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={unstagedSectionAccessibilityState}
+                disabled={displayFiles.length === 0}
+                onPress={toggleUnstagedSection}
+                style={styles.sourceControlGroupTitleButton}
+                testID="changes-unstaged-toggle"
+              >
+                <ThemedChevronDown
+                  size={14}
+                  uniProps={foregroundMutedIconColorMapping}
+                  style={sourceControlOpenUnstaged ? undefined : COLLAPSED_CHEVRON_STYLE}
+                />
+                <Text style={styles.sourceControlGroupTitle}>
+                  {t("workspace.git.sourceControl.unstaged")}
+                </Text>
+                <Text style={styles.sourceControlGroupCount}>{displayFiles.length}</Text>
+              </Pressable>
+              <Button
+                variant="secondary"
+                size="xs"
+                leftIcon={Plus}
+                disabled={displayFiles.length === 0}
+                onPress={handleStageAll}
+                testID="changes-stage-all"
+              >
+                {t("workspace.git.sourceControl.stageAll")}
+              </Button>
+            </View>
+            {sourceControlOpenUnstaged ? (
+              <View style={styles.sourceControlGroupBody}>
+                <SharedDiffView
+                  files={displayFiles}
+                  displayPreferences={sharedDisplayPreferences}
+                  mode={workingTreeMode}
+                />
+              </View>
+            ) : null}
+          </View>
+        </View>
+      ) : (
+        <SharedDiffView
+          files={files}
+          displayPreferences={sharedDisplayPreferences}
+          mode={workingTreeMode}
+        />
+      )}
     </DiffBodyContent>
   );
 
@@ -3233,6 +4282,19 @@ export function GitDiffPane({
       ) : null}
 
       {prErrorMessage ? <Text style={styles.actionErrorText}>{prErrorMessage}</Text> : null}
+
+      <CommitComposerSlot
+        visible={commitComposerVisible}
+        serverId={serverId}
+        cwd={cwd}
+        files={indexDiffEnabled ? stagedFiles : files}
+        selectedPaths={commitSelection.selectedPaths}
+        selectiveCommitSupported={selectiveCommitSupported}
+        gitIndexSupported={gitIndexSupported}
+        commitMessageGenerationSupported={commitMessageGenerationSupported}
+        commitMessageGenerationKnown={commitMessageGenerationKnown}
+        onToggleAll={commitSelection.toggleAll}
+      />
 
       <View style={styles.diffContainer}>{bodyContent}</View>
 
@@ -3351,6 +4413,83 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.xs,
     color: theme.colors.destructive,
   },
+  commitComposer: {
+    gap: theme.spacing[1],
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface1,
+    flexShrink: 0,
+  },
+  commitMessageInput: {
+    minHeight: COMMIT_MESSAGE_MIN_HEIGHT,
+    maxHeight: COMMIT_MESSAGE_MAX_HEIGHT,
+    textAlignVertical: "top",
+  },
+  commitMessageResizeHandle: {
+    height: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+  resizeHandleGrip: {
+    width: 48,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: theme.colors.border,
+  },
+  commitComposerFooter: {
+    minHeight: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: theme.spacing[2],
+  },
+  commitComposerSpacer: {
+    flex: 1,
+  },
+  commitComposerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: theme.spacing[2],
+  },
+  selectAllControl: {
+    minHeight: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[2],
+    paddingRight: theme.spacing[2],
+  },
+  selectAllText: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
+  selectionCheckbox: {
+    width: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: theme.colors.foregroundMuted,
+    borderRadius: theme.borderRadius.base,
+    backgroundColor: "transparent",
+  },
+  selectionCheckboxChecked: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent,
+  },
+  commitComposerHint: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
+  commitComposerError: {
+    color: theme.colors.destructive,
+    fontSize: theme.fontSize.xs,
+  },
   forgeSetupCallout: {
     marginHorizontal: theme.spacing[3],
     marginBottom: theme.spacing[2],
@@ -3369,6 +4508,52 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     minHeight: 0,
     position: "relative",
+  },
+  sourceControlGroups: {
+    flex: 1,
+    minHeight: 0,
+  },
+  sourceControlGroup: {
+    flexShrink: 1,
+    minHeight: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  sourceControlGroupHeader: {
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: theme.spacing[3],
+    gap: theme.spacing[2],
+  },
+  sourceControlGroupTitleButton: {
+    minHeight: 36,
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+  },
+  sourceControlGroupTitle: {
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.sm,
+    fontWeight: "600",
+  },
+  sourceControlGroupCount: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
+  sourceControlGroupBody: {
+    flex: 1,
+    minHeight: 0,
+  },
+  sourceControlDivider: {
+    height: 12,
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
   },
   scrollView: {
     flex: 1,
@@ -3425,6 +4610,33 @@ const styles = StyleSheet.create((theme) => ({
   },
   fileSectionHeaderExpanded: {
     backgroundColor: theme.colors.surface1,
+  },
+  fileInlineControls: {
+    position: "absolute",
+    right: WORKSPACE_FILE_ROW_TRAILING_PADDING,
+    top: 0,
+    bottom: 0,
+    zIndex: 3,
+    elevation: 3,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  fileInlineControlSlot: {
+    width: 28,
+    height: 28,
+  },
+  fileInlineControlVisible: {
+    opacity: 1,
+  },
+  fileInlineControlHidden: {
+    opacity: 0,
+  },
+  fileInlineControlButton: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.borderRadius.base,
   },
   fileSectionBodyContainer: {
     overflow: "hidden",

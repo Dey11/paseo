@@ -1663,6 +1663,12 @@ export class VoiceAssistantWebSocketServer {
         fsEntryDuplicate: true,
         // COMPAT(checkoutDiscardChanges): added in v0.3.0, remove gate after 2027-02-08.
         checkoutDiscardChanges: true,
+        // COMPAT(checkoutSelectiveCommit): added in v0.4.0, remove gate after 2027-02-17.
+        checkoutSelectiveCommit: true,
+        // COMPAT(checkoutCommitMessageGeneration): added in v0.4.0, remove gate after 2027-02-17.
+        checkoutCommitMessageGeneration: true,
+        // COMPAT(checkoutGitIndex): added in v0.4.0, remove gate after 2027-02-18.
+        checkoutGitIndex: true,
         // COMPAT(agentProfiles): added in v0.3.2, remove gate after 2027-02-11.
         agentProfiles: true,
         // COMPAT(agentConfigApply): added in v0.3.2, remove gate after 2027-02-11.
