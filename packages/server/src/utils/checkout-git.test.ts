@@ -589,31 +589,34 @@ describe("checkout git utilities", () => {
     ).toBe("?? new.txt");
   });
 
-  it("stages and unstages every file without round-tripping escaped display paths", async () => {
-    const invalidFileName = Buffer.from([
-      0x01, 0x90, 0xf8, 0x40, 0x40, 0xd0, 0xc3, 0x39, 0x40, 0x38,
-    ]);
-    const invalidFilePath = Buffer.concat([Buffer.from(`${repoDir}/`), invalidFileName]);
-    writeFileSync(invalidFilePath, "binary path\n");
+  it.skipIf(process.platform === "win32")(
+    "stages and unstages every file without round-tripping escaped display paths",
+    async () => {
+      const invalidFileName = Buffer.from([
+        0x01, 0x90, 0xf8, 0x40, 0x40, 0xd0, 0xc3, 0x39, 0x40, 0x38,
+      ]);
+      const invalidFilePath = Buffer.concat([Buffer.from(`${repoDir}/`), invalidFileName]);
+      writeFileSync(invalidFilePath, "binary path\n");
 
-    await updateCheckoutIndex(repoDir, "stage", [], true);
+      await updateCheckoutIndex(repoDir, "stage", [], true);
 
-    const cachedNames = execFileSync("git", ["diff", "--cached", "--name-only", "-z"], {
-      cwd: repoDir,
-    });
-    expect(cachedNames.includes(invalidFileName)).toBe(true);
+      const cachedNames = execFileSync("git", ["diff", "--cached", "--name-only", "-z"], {
+        cwd: repoDir,
+      });
+      expect(cachedNames.includes(invalidFileName)).toBe(true);
 
-    await updateCheckoutIndex(repoDir, "unstage", [], true);
+      await updateCheckoutIndex(repoDir, "unstage", [], true);
 
-    expect(
-      execFileSync("git", ["diff", "--cached", "--name-only", "-z"], { cwd: repoDir }),
-    ).toHaveLength(0);
-    expect(
-      execFileSync("git", ["status", "--porcelain=v1", "-z"], { cwd: repoDir }).includes(
-        invalidFileName,
-      ),
-    ).toBe(true);
-  });
+      expect(
+        execFileSync("git", ["diff", "--cached", "--name-only", "-z"], { cwd: repoDir }),
+      ).toHaveLength(0);
+      expect(
+        execFileSync("git", ["status", "--porcelain=v1", "-z"], { cwd: repoDir }).includes(
+          invalidFileName,
+        ),
+      ).toBe(true);
+    },
+  );
 
   it("reads the origin URL once when collecting facts for an origin-tracking branch", async () => {
     setupRemoteTrackingMain(repoDir, tempDir);
