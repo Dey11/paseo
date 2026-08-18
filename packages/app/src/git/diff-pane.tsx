@@ -4000,7 +4000,7 @@ export function GitDiffPane({
       expandedPaths: stagedTree.expandedPaths,
       collapsedFolders: stagedTree.collapsedFolders,
       reviewActions: undefined,
-      onRevert: undefined,
+      onRevert: onRevertPath,
       onIndexUpdate: onUnstagePath,
       indexOperation: "unstage" as const,
       testIDPrefix: "staged-diff",
@@ -4010,6 +4010,7 @@ export function GitDiffPane({
       onCollapsedFoldersChange: stagedTree.updateCollapsedFolders,
     }),
     [
+      onRevertPath,
       onUnstagePath,
       stagedTree.collapsedFolders,
       stagedTree.expandedPaths,

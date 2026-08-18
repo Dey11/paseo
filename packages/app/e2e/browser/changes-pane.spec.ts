@@ -374,7 +374,7 @@ test("discarding a staged rename restores its source path", async ({ page }) => 
   await openWorkspaceChanges(page, workspace);
 
   const renamedToggle = page
-    .getByTestId(/^diff-file-\d+-toggle$/)
+    .getByTestId(/^(?:staged-)?diff-file-\d+-toggle$/)
     .filter({ hasText: "zz-renamed.ts" });
   const toggleTestId = await renamedToggle.getAttribute("data-testid");
   expect(toggleTestId).not.toBeNull();
@@ -403,7 +403,7 @@ test("discarding an untracked file removes it from the working tree", async ({ p
   await openWorkspaceChanges(page, workspace);
 
   const untrackedToggle = page
-    .getByTestId(/^diff-file-\d+-toggle$/)
+    .getByTestId(/^(?:staged-)?diff-file-\d+-toggle$/)
     .filter({ hasText: "zz-untracked.txt" });
   const toggleTestId = await untrackedToggle.getAttribute("data-testid");
   expect(toggleTestId).not.toBeNull();
