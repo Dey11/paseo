@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import type { ParsedDiffFile } from "@getpaseo/protocol/messages";
 import { queryClient as appQueryClient } from "@/data/query-client";
 import { useSessionStore } from "@/stores/session-store";
 import {
   __resetCheckoutGitActionsStoreForTests,
   useCheckoutGitActionsStore,
 } from "@/git/actions-store";
+import { checkoutDiffQueryKey } from "@/git/query-keys";
 
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
@@ -206,6 +208,107 @@ describe("checkout-git-actions-store", () => {
         .getState()
         .getStatus({ serverId, cwd, actionId: "discard-changes" }),
     ).toBe("success");
+  });
+
+  it("optimistically moves files and queues rapid unstage operations without dropping paths", async () => {
+    const stagedKey = checkoutDiffQueryKey(serverId, cwd, "staged");
+    const unstagedKey = checkoutDiffQueryKey(serverId, cwd, "unstaged");
+    const file = (path: string) =>
+      ({
+        path,
+        isNew: false,
+        isDeleted: false,
+        additions: 1,
+        deletions: 0,
+        hunks: [],
+      }) as ParsedDiffFile;
+    appQueryClient.setQueryData(stagedKey, {
+      cwd,
+      files: [file("docs/guide.md"), file("README.md")],
+      error: null,
+    });
+    appQueryClient.setQueryData(unstagedKey, { cwd, files: [], error: null });
+
+    const first = createDeferred<unknown>();
+    const second = createDeferred<unknown>();
+    const checkoutIndexUpdate = vi
+      .fn()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    const client = { checkoutIndexUpdate };
+    useSessionStore.setState((state) => ({
+      ...state,
+      sessions: {
+        ...state.sessions,
+        [serverId]: { client } as unknown as (typeof state.sessions)[string],
+      },
+    }));
+
+    const store = useCheckoutGitActionsStore.getState();
+    const firstUnstage = store.unstage({ serverId, cwd, paths: ["docs/guide.md"] });
+    const secondUnstage = store.unstage({ serverId, cwd, paths: ["README.md"] });
+
+    expect(appQueryClient.getQueryData(stagedKey)).toMatchObject({ files: [] });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(checkoutIndexUpdate).toHaveBeenCalledTimes(1);
+
+    first.resolve({ success: true, error: null });
+    await firstUnstage;
+    await Promise.resolve();
+    expect(checkoutIndexUpdate).toHaveBeenCalledTimes(2);
+    expect(checkoutIndexUpdate).toHaveBeenLastCalledWith(cwd, {
+      operation: "unstage",
+      paths: ["README.md"],
+    });
+
+    second.resolve({ success: true, error: null });
+    await secondUnstage;
+    expect(appQueryClient.getQueryData(unstagedKey)).toMatchObject({
+      files: [
+        expect.objectContaining({ path: "docs/guide.md" }),
+        expect.objectContaining({ path: "README.md" }),
+      ],
+    });
+  });
+
+  it("rolls back an optimistic index move when Git rejects the operation", async () => {
+    const stagedKey = checkoutDiffQueryKey(serverId, cwd, "staged");
+    const unstagedKey = checkoutDiffQueryKey(serverId, cwd, "unstaged");
+    const markdownFile = {
+      path: "docs/guide.md",
+      isNew: false,
+      isDeleted: false,
+      additions: 1,
+      deletions: 0,
+      hunks: [],
+    } as ParsedDiffFile;
+    appQueryClient.setQueryData(stagedKey, { cwd, files: [markdownFile], error: null });
+    appQueryClient.setQueryData(unstagedKey, { cwd, files: [], error: null });
+    const client = {
+      checkoutIndexUpdate: vi.fn(async () => ({
+        success: false,
+        error: { message: "index locked" },
+      })),
+    };
+    useSessionStore.setState((state) => ({
+      ...state,
+      sessions: {
+        ...state.sessions,
+        [serverId]: { client } as unknown as (typeof state.sessions)[string],
+      },
+    }));
+
+    const operation = useCheckoutGitActionsStore
+      .getState()
+      .unstage({ serverId, cwd, paths: [markdownFile.path] });
+    expect(appQueryClient.getQueryData(stagedKey)).toMatchObject({ files: [] });
+
+    await expect(operation).rejects.toThrow("index locked");
+    expect(appQueryClient.getQueryData(stagedKey)).toMatchObject({
+      files: [expect.objectContaining({ path: markdownFile.path })],
+    });
+    expect(appQueryClient.getQueryData(unstagedKey)).toMatchObject({ files: [] });
   });
 
   for (const rpc of [
