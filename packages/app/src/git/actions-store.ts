@@ -1,4 +1,8 @@
-import type { CheckoutPrMergeMethod } from "@getpaseo/protocol/messages";
+import type {
+  CheckoutPrMergeMethod,
+  ParsedDiffFile,
+  SubscribeCheckoutDiffResponse,
+} from "@getpaseo/protocol/messages";
 import { create } from "zustand";
 import { queryClient as appQueryClient } from "@/data/query-client";
 import { useSessionStore } from "@/stores/session-store";
@@ -6,6 +10,10 @@ import { invalidateCheckoutGitQueriesForClient } from "@/git/query-keys";
 import { i18n } from "@/i18n/i18next";
 
 const SUCCESS_DISPLAY_MS = 1000;
+
+type CheckoutDiffCachePayload = Omit<SubscribeCheckoutDiffResponse["payload"], "subscriptionId">;
+type CheckoutDiffMode = "staged" | "unstaged";
+type QueryKey = readonly unknown[];
 
 export type CheckoutGitActionStatus = "idle" | "pending" | "success";
 
@@ -25,7 +33,9 @@ export type CheckoutGitAsyncActionId =
   | "disable-pr-auto-merge"
   | "merge-branch"
   | "merge-from-base"
-  | "discard-changes";
+  | "discard-changes"
+  | "stage"
+  | "unstage";
 
 type CheckoutKey = string;
 type StatusMap = Partial<Record<CheckoutGitAsyncActionId, CheckoutGitActionStatus>>;
@@ -87,9 +97,151 @@ function invalidateCheckoutGitQueries(serverId: string, cwd: string) {
 
 const successTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const inFlight = new Map<string, Promise<unknown>>();
+const indexMutationQueues = new Map<CheckoutKey, Promise<void>>();
 
 function inFlightKey(key: CheckoutKey, actionId: CheckoutGitAsyncActionId): string {
   return `${key}::${actionId}`;
+}
+
+function isCheckoutDiffQueryKey(
+  queryKey: QueryKey,
+  input: { serverId: string; cwd: string; mode: CheckoutDiffMode },
+): boolean {
+  return (
+    queryKey[0] === "checkoutDiff" &&
+    queryKey[1] === input.serverId &&
+    queryKey[2] === input.cwd &&
+    queryKey[3] === input.mode
+  );
+}
+
+function fileMatchesPaths(file: ParsedDiffFile, paths: ReadonlySet<string>): boolean {
+  return paths.has(file.path) || (file.oldPath !== undefined && paths.has(file.oldPath));
+}
+
+function sortDiffFiles(files: ParsedDiffFile[]): ParsedDiffFile[] {
+  return files.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function mergeOptimisticFiles(
+  current: ParsedDiffFile[],
+  incoming: ParsedDiffFile[],
+): ParsedDiffFile[] {
+  const byPath = new Map(current.map((file) => [file.path, file]));
+  for (const file of incoming) {
+    if (!byPath.has(file.path)) {
+      byPath.set(file.path, file);
+    }
+  }
+  return sortDiffFiles([...byPath.values()]);
+}
+
+function replaceAffectedFiles(
+  current: ParsedDiffFile[],
+  previous: ParsedDiffFile[],
+  affectedPaths: ReadonlySet<string>,
+): ParsedDiffFile[] {
+  const unaffected = current.filter((file) => !fileMatchesPaths(file, affectedPaths));
+  const restored = previous.filter((file) => fileMatchesPaths(file, affectedPaths));
+  return sortDiffFiles([...unaffected, ...restored]);
+}
+
+function applyOptimisticIndexUpdate(input: {
+  serverId: string;
+  cwd: string;
+  operation: "stage" | "unstage";
+  paths?: string[];
+  all?: boolean;
+}): () => void {
+  const sourceMode: CheckoutDiffMode = input.operation === "stage" ? "unstaged" : "staged";
+  const destinationMode: CheckoutDiffMode = input.operation === "stage" ? "staged" : "unstaged";
+  const requestedPaths = new Set(input.paths ?? []);
+  const snapshots = new Map<
+    string,
+    { queryKey: QueryKey; payload: CheckoutDiffCachePayload; affectedPaths: Set<string> }
+  >();
+
+  const sourceQueries = appQueryClient.getQueryCache().findAll({
+    predicate: (query) =>
+      isCheckoutDiffQueryKey(query.queryKey, {
+        serverId: input.serverId,
+        cwd: input.cwd,
+        mode: sourceMode,
+      }),
+  });
+
+  for (const sourceQuery of sourceQueries) {
+    const sourcePayload = appQueryClient.getQueryData<CheckoutDiffCachePayload>(
+      sourceQuery.queryKey,
+    );
+    if (!sourcePayload) {
+      continue;
+    }
+    const movedFiles = sourcePayload.files.filter(
+      (file) => input.all === true || fileMatchesPaths(file, requestedPaths),
+    );
+    if (movedFiles.length === 0) {
+      continue;
+    }
+    const affectedPaths = new Set(
+      movedFiles.flatMap((file) => (file.oldPath ? [file.path, file.oldPath] : [file.path])),
+    );
+    const destinationKey = [...sourceQuery.queryKey];
+    destinationKey[3] = destinationMode;
+    const destinationPayload =
+      appQueryClient.getQueryData<CheckoutDiffCachePayload>(destinationKey);
+
+    snapshots.set(JSON.stringify(sourceQuery.queryKey), {
+      queryKey: sourceQuery.queryKey,
+      payload: sourcePayload,
+      affectedPaths,
+    });
+    appQueryClient.setQueryData<CheckoutDiffCachePayload>(sourceQuery.queryKey, {
+      ...sourcePayload,
+      files: sourcePayload.files.filter((file) => !fileMatchesPaths(file, affectedPaths)),
+    });
+
+    if (destinationPayload) {
+      snapshots.set(JSON.stringify(destinationKey), {
+        queryKey: destinationKey,
+        payload: destinationPayload,
+        affectedPaths,
+      });
+      appQueryClient.setQueryData<CheckoutDiffCachePayload>(destinationKey, {
+        ...destinationPayload,
+        files: mergeOptimisticFiles(destinationPayload.files, movedFiles),
+      });
+    }
+  }
+
+  return () => {
+    for (const snapshot of snapshots.values()) {
+      appQueryClient.setQueryData<CheckoutDiffCachePayload>(snapshot.queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              files: replaceAffectedFiles(
+                current.files,
+                snapshot.payload.files,
+                snapshot.affectedPaths,
+              ),
+            }
+          : snapshot.payload,
+      );
+    }
+  };
+}
+
+function enqueueIndexMutation(key: CheckoutKey, run: () => Promise<void>): Promise<void> {
+  const previous = indexMutationQueues.get(key) ?? Promise.resolve();
+  const queued = previous.catch(() => undefined).then(run);
+  const tracked = queued.finally(() => {
+    if (indexMutationQueues.get(key) === tracked) {
+      indexMutationQueues.delete(key);
+    }
+  });
+  indexMutationQueues.set(key, tracked);
+  return tracked;
 }
 
 interface CheckoutGitActionsStoreState {
@@ -101,7 +253,13 @@ interface CheckoutGitActionsStoreState {
     actionId: CheckoutGitAsyncActionId;
   }) => CheckoutGitActionStatus;
 
-  commit: (params: { serverId: string; cwd: string }) => Promise<void>;
+  commit: (params: {
+    serverId: string;
+    cwd: string;
+    message?: string;
+    files?: string[];
+    addAll?: boolean;
+  }) => Promise<void>;
   pull: (params: { serverId: string; cwd: string }) => Promise<void>;
   push: (params: { serverId: string; cwd: string }) => Promise<void>;
   pullAndPush: (params: { serverId: string; cwd: string }) => Promise<void>;
@@ -121,6 +279,18 @@ interface CheckoutGitActionsStoreState {
   mergeBranch: (params: { serverId: string; cwd: string; baseRef: string }) => Promise<void>;
   mergeFromBase: (params: { serverId: string; cwd: string; baseRef: string }) => Promise<void>;
   discardChanges: (params: { serverId: string; cwd: string; paths: string[] }) => Promise<void>;
+  stage: (params: {
+    serverId: string;
+    cwd: string;
+    paths?: string[];
+    all?: boolean;
+  }) => Promise<void>;
+  unstage: (params: {
+    serverId: string;
+    cwd: string;
+    paths?: string[];
+    all?: boolean;
+  }) => Promise<void>;
 }
 
 async function runCheckoutAction({
@@ -128,14 +298,18 @@ async function runCheckoutAction({
   cwd,
   actionId,
   run,
+  dedupeSuffix,
+  invalidateAfterSuccess = true,
 }: {
   serverId: string;
   cwd: string;
   actionId: CheckoutGitAsyncActionId;
   run: () => Promise<void>;
+  dedupeSuffix?: string;
+  invalidateAfterSuccess?: boolean;
 }): Promise<void> {
   const key = checkoutKey(serverId, cwd);
-  const inflightId = inFlightKey(key, actionId);
+  const inflightId = `${inFlightKey(key, actionId)}${dedupeSuffix ? `::${dedupeSuffix}` : ""}`;
 
   const existing = inFlight.get(inflightId);
   if (existing) {
@@ -154,7 +328,13 @@ async function runCheckoutAction({
   const promise = (async () => {
     try {
       await run();
-      await invalidateCheckoutGitQueries(serverId, cwd);
+      if (invalidateAfterSuccess) {
+        try {
+          await invalidateCheckoutGitQueries(serverId, cwd);
+        } catch {
+          // Query refresh errors belong to their query surfaces; the Git mutation already succeeded.
+        }
+      }
       setStatus(key, actionId, "success");
       const timer = setTimeout(() => {
         setStatus(key, actionId, "idle");
@@ -181,14 +361,17 @@ export const useCheckoutGitActionsStore = create<CheckoutGitActionsStoreState>()
     return get().statusByCheckout[key]?.[actionId] ?? "idle";
   },
 
-  commit: async ({ serverId, cwd }) => {
+  commit: async ({ serverId, cwd, message, files, addAll }) => {
     await runCheckoutAction({
       serverId,
       cwd,
       actionId: "commit",
       run: async () => {
         const client = resolveClient(serverId);
-        const payload = await client.checkoutCommit(cwd, { addAll: true });
+        const payload = await client.checkoutCommit(cwd, {
+          ...(message ? { message } : null),
+          ...(files ? { files } : { addAll: addAll ?? true }),
+        });
         if (payload.error) {
           throw new Error(payload.error.message);
         }
@@ -385,6 +568,66 @@ export const useCheckoutGitActionsStore = create<CheckoutGitActionsStoreState>()
       },
     });
   },
+
+  stage: async ({ serverId, cwd, paths, all }) => {
+    const rollback = applyOptimisticIndexUpdate({ serverId, cwd, operation: "stage", paths, all });
+    try {
+      await runCheckoutAction({
+        serverId,
+        cwd,
+        actionId: "stage",
+        dedupeSuffix: all ? "all" : JSON.stringify([...new Set(paths ?? [])].sort()),
+        invalidateAfterSuccess: false,
+        run: () =>
+          enqueueIndexMutation(checkoutKey(serverId, cwd), async () => {
+            const payload = await resolveClient(serverId).checkoutIndexUpdate(cwd, {
+              operation: "stage",
+              paths,
+              all,
+            });
+            if (!payload.success) {
+              throw new Error(payload.error?.message ?? "Unable to stage changes");
+            }
+          }),
+      });
+    } catch (error) {
+      rollback();
+      throw error;
+    }
+  },
+
+  unstage: async ({ serverId, cwd, paths, all }) => {
+    const rollback = applyOptimisticIndexUpdate({
+      serverId,
+      cwd,
+      operation: "unstage",
+      paths,
+      all,
+    });
+    try {
+      await runCheckoutAction({
+        serverId,
+        cwd,
+        actionId: "unstage",
+        dedupeSuffix: all ? "all" : JSON.stringify([...new Set(paths ?? [])].sort()),
+        invalidateAfterSuccess: false,
+        run: () =>
+          enqueueIndexMutation(checkoutKey(serverId, cwd), async () => {
+            const payload = await resolveClient(serverId).checkoutIndexUpdate(cwd, {
+              operation: "unstage",
+              paths,
+              all,
+            });
+            if (!payload.success) {
+              throw new Error(payload.error?.message ?? "Unable to unstage changes");
+            }
+          }),
+      });
+    } catch (error) {
+      rollback();
+      throw error;
+    }
+  },
 }));
 
 export function __resetCheckoutGitActionsStoreForTests() {
@@ -393,5 +636,6 @@ export function __resetCheckoutGitActionsStoreForTests() {
   }
   successTimers.clear();
   inFlight.clear();
+  indexMutationQueues.clear();
   useCheckoutGitActionsStore.setState({ statusByCheckout: {} });
 }
