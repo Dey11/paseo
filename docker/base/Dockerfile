@@ -18,14 +18,14 @@ RUN set -eux; \
     npm ci
 
 RUN set -eux; \
-    mkdir -p /tmp/hanabicode-packs; \
-    npm pack --workspace=@getpaseo/highlight --pack-destination /tmp/hanabicode-packs; \
-    npm pack --workspace=@getpaseo/relay --pack-destination /tmp/hanabicode-packs; \
-    npm pack --workspace=@getpaseo/protocol --pack-destination /tmp/hanabicode-packs; \
-    npm pack --workspace=@getpaseo/client --pack-destination /tmp/hanabicode-packs; \
-    npm pack --workspace=@paseo/plugin --pack-destination /tmp/hanabicode-packs; \
-    npm pack --workspace=@getpaseo/server --pack-destination /tmp/hanabicode-packs; \
-    npm pack --workspace=@getpaseo/cli --pack-destination /tmp/hanabicode-packs
+    mkdir -p /tmp/paseo-packs; \
+    npm pack --workspace=@getpaseo/highlight --pack-destination /tmp/paseo-packs; \
+    npm pack --workspace=@getpaseo/relay --pack-destination /tmp/paseo-packs; \
+    npm pack --workspace=@getpaseo/protocol --pack-destination /tmp/paseo-packs; \
+    npm pack --workspace=@getpaseo/client --pack-destination /tmp/paseo-packs; \
+    npm pack --workspace=@getpaseo/plugin --pack-destination /tmp/paseo-packs; \
+    npm pack --workspace=@getpaseo/server --pack-destination /tmp/paseo-packs; \
+    npm pack --workspace=@getpaseo/cli --pack-destination /tmp/paseo-packs
 
 FROM ${NODE_IMAGE}
 

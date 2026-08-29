@@ -47,6 +47,90 @@ npm run dev:desktop
 Useful commands:
 
 ```bash
+docker run -d --name paseo \
+  -p 6767:6767 \
+  -e PASEO_PASSWORD=change-me \
+  -v "$PWD/paseo-home:/home/paseo" \
+  -v "$PWD:/workspace" \
+  ghcr.io/getpaseo/paseo:latest
+```
+
+Open `http://localhost:6767` after it starts. Extend the base image with the agent CLIs you use, then provide credentials through environment variables or the persistent `/home/paseo` volume. See the [Docker documentation](docs/docker.md) for full setup details.
+
+## CLI
+
+Everything you can do in the app, you can do from the terminal.
+
+```bash
+paseo run --provider claude/opus-4.6 "implement user authentication"
+paseo run --provider codex/gpt-5.5 --worktree feature-x "implement feature X"
+
+paseo ls                           # list running agents
+paseo attach abc123                # stream live output
+paseo send abc123 "also add tests" # follow-up task
+
+# run on a remote daemon; --cwd is a path on that host
+paseo run --host workstation.local:6767 --cwd /workspace "run the full test suite"
+```
+
+See the [full CLI reference](https://paseo.sh/docs/cli) for more.
+
+## TypeScript SDK
+
+Build issue integrations, dashboards, and orchestration services with `@getpaseo/client`:
+
+```ts
+import { createPaseoClient } from "@getpaseo/client";
+
+const client = createPaseoClient({ url: "ws://127.0.0.1:6767/ws" });
+await client.connect();
+
+const agent = await client.agents.create({
+  config: { provider: "codex/gpt-5.5" },
+  cwd: "/Users/me/dev/storefront",
+  prompt: "Review the current diff and name the riskiest change.",
+});
+
+const result = await agent.waitForFinish();
+console.log(result.lastMessage);
+
+await client.close();
+```
+
+See the [SDK quickstart](https://paseo.sh/docs/sdk/quickstart), [recipes](https://paseo.sh/docs/sdk/recipes), and [API reference](https://paseo.sh/docs/sdk/reference).
+
+## Skills
+
+Skills teach your agent to use Paseo to orchestrate other agents.
+
+```bash
+npx skills add getpaseo/paseo
+```
+
+Then use them in any agent conversation:
+
+- `/paseo-handoff` — hand off work between agents. I use this to plan with Claude and then handoff to Codex to implement.
+- `/paseo-advisor` — spin up a single agent as an advisor for a second opinion, without delegating the work itself.
+- `/paseo-committee` — form a committee of two contrasting agents to step back, do root cause analysis, and produce a plan.
+
+## Development
+
+Quick monorepo package map:
+
+- `packages/server`: Paseo daemon (agent process orchestration, WebSocket API, MCP server)
+- `packages/app`: Expo client (iOS, Android, web)
+- `packages/cli`: `paseo` CLI for daemon and agent workflows
+- `packages/desktop`: Electron desktop app
+- `packages/relay`: Relay transport and encryption used by the daemon and clients
+- `packages/website`: Marketing site and documentation (`paseo.sh`)
+
+Common commands:
+
+```bash
+# run all local dev services
+npm run dev
+
+# run individual surfaces
 npm run dev:server
 npm run dev:app
 npm run dev:desktop
@@ -59,7 +143,8 @@ The installed desktop app bundles the `hanabicode` CLI. HanabiCode intentionally
 the inherited `PASEO_*` environment-variable prefix as a compatibility API. See
 [`.env.example`](.env.example) for safe defaults and relay configuration.
 
-## Repository map
+- [getpaseo/paseo-relay](https://github.com/getpaseo/paseo-relay) — official distributed relay, written in Elixir
+- [paseo-vscode](https://marketplace.visualstudio.com/items?itemName=hinnes.paseo-vscode) — VS Code extension
 
 - `packages/server` — daemon and agent lifecycle
 - `packages/app` — Expo Android, iOS, web, and Electron renderer
@@ -68,22 +153,4 @@ the inherited `PASEO_*` environment-variable prefix as a compatibility API. See
 - `packages/protocol` — backward-compatible wire schemas
 - `packages/relay` — in-repository relay transport implementation
 
-## Connectivity
-
-HanabiCode can connect directly over LAN/Tailscale or through an end-to-end encrypted
-relay. The fork does not assume an upstream hosted relay. Configure a self-hosted
-endpoint before enabling relay pairing. The recommended deployment and option
-comparison are in [docs/fork-docs/relay-options.md](docs/fork-docs/relay-options.md).
-
-## License and source
-
-HanabiCode is distributed under the
-[GNU Affero General Public License v3 or later](LICENSE). You may inspect,
-modify, redistribute, host, and charge for copies or services under those terms.
-Modified network deployments and distributed binaries must keep the notices and
-offer their users the corresponding source.
-
-The GNU license text in `LICENSE` is retained unchanged. Fork attribution and
-additional copyright notices live in [NOTICE](NOTICE). See
-[docs/fork-docs/licensing.md](docs/fork-docs/licensing.md) for practical fork
-compliance guidance.
+Apache-2.0

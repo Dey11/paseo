@@ -1,10 +1,7 @@
 {
   "name": "@getpaseo/relay",
-  "version": "0.4.0",
-  "private": true,
-  "description": "HanabiCode relay for bridging daemon and client connections",
-  "license": "AGPL-3.0-or-later",
-  "repository": "https://github.com/Dey11/hanabicode.git",
+  "version": "0.7.0-beta.1",
+  "description": "Paseo relay for bridging daemon and client connections",
   "files": [
     "dist",
     "!dist/**/*.map"

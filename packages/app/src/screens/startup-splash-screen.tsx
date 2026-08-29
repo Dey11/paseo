@@ -224,7 +224,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   title: {
     color: theme.colors.foreground,
-    fontSize: theme.fontSize["3xl"],
+    fontSize: theme.fontSize.base,
     fontWeight: theme.fontWeight.semibold,
     textAlign: "left",
   },
@@ -241,7 +241,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   logsMeta: {
     color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.sm,
+    fontSize: theme.fontSize.base,
   },
   logsContainer: {
     height: 200,
