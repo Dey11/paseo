@@ -5,7 +5,7 @@
  * here so the fork can coexist with an upstream installation.
  */
 export const PRODUCT_NAME = "HanabiCode";
-export const PRODUCT_REPOSITORY_URL = "https://github.com/Dey11/hanabicode";
+export const PRODUCT_REPOSITORY_URL = "https://github.com/Dey11/paseo";
 export const DEFAULT_HANABICODE_HOME = "~/.hanabicode";
 export const DEFAULT_HANABICODE_PORT = 6769;
 export const DEFAULT_HANABICODE_LISTEN = `127.0.0.1:${DEFAULT_HANABICODE_PORT}`;

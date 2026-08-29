@@ -22,6 +22,7 @@ import {
   type HostRuntimeStorage,
 } from "./host-runtime";
 import type { ReplicaRow, ReplicaRowStore } from "./replica-cache/row-store";
+import { DEFAULT_DAEMON_ENDPOINT } from "@/constants/product";
 
 class FakeDaemonClient {
   private state: ConnectionState = { status: "idle" };

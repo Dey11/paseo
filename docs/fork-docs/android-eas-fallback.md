@@ -60,7 +60,7 @@ When it finishes:
 1. Download the APK from the Expo build page.
 2. Verify its signing certificate fingerprint.
 3. Install it on Android.
-4. Pair it with the VPS through the configured HanabiCode relay.
+4. Connect it to the VPS through the direct Tailscale host.
 5. Confirm a later APK signed by the same key installs over it.
 
 Do not automate a build that has not passed this manual round trip.
@@ -88,7 +88,7 @@ An EAS Build project does not require these features:
 - Firebase or push notifications;
 - Apple builds or App Store submission.
 
-Enable each separately with fork-owned accounts. Android push delivery may need a fork-owned Firebase project and FCM credentials, but relay pairing and normal foreground use do not require that decision.
+Enable each separately with fork-owned accounts. Android push delivery may need a fork-owned Firebase project and FCM credentials, but direct connections and normal foreground use do not require that decision.
 
 Check the current [EAS pricing and account usage](https://expo.dev/pricing) before relying on hosted builds. Quotas and queue priority are service policy, not repository behavior.
 

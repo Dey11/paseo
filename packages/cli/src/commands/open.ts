@@ -78,7 +78,7 @@ function launchDesktop(args: string[]): void {
   const desktopApp = findDesktopApp();
   if (!desktopApp) {
     throw new Error(
-      "HanabiCode desktop app not found. Install it from https://github.com/Dey11/hanabicode/releases",
+      "HanabiCode desktop app not found. Install it from https://github.com/Dey11/paseo/releases",
     );
   }
 

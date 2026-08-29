@@ -38,7 +38,7 @@ extraResources:
 publish:
   provider: github
   owner: Dey11
-  repo: hanabicode
+  repo: paseo
 mac:
   artifactName: "HanabiCode-${version}-${arch}.${ext}"
   category: public.app-category.developer-tools
@@ -62,7 +62,7 @@ linux:
   category: Development
   icon: assets
   artifactName: "HanabiCode-${version}-${arch}.${ext}"
-  maintainer: "HanabiCode contributors <https://github.com/Dey11/hanabicode>"
+  maintainer: "HanabiCode contributors <https://github.com/Dey11/paseo>"
   vendor: "HanabiCode"
   extraResources:
     - from: bin/hanabicode

@@ -110,6 +110,11 @@ import type {
   AgentSkillSelection,
   AgentSkillsStatus,
   AgentSkillsSaveResult,
+  WorkspacePortObservation,
+  WorkspacePortWatchResponse,
+  WorkspacePortUnwatchResponse,
+  WorkspacePortForwardCreateResponse,
+  WorkspacePortForwardDeleteResponse,
 } from "@getpaseo/protocol/messages";
 import type {
   AgentPermissionRequest,

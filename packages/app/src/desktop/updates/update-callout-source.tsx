@@ -17,7 +17,7 @@ import { useStableEvent } from "@/hooks/use-stable-event";
 import { openExternalUrl } from "@/utils/open-external-url";
 
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
-const CHANGELOG_URL = "https://github.com/Dey11/hanabicode/releases";
+const CHANGELOG_URL = "https://github.com/Dey11/paseo/releases";
 
 function renderBody(body: UpdateCalloutBody, t: ReturnType<typeof useTranslation>["t"]): ReactNode {
   if (body.kind === "installing") return t("desktop.updates.callout.installingDescription");

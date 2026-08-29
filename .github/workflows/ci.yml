@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, hanabicode]
   pull_request:
-    branches: [main]
+    branches: [main, hanabicode]
   merge_group:
   workflow_dispatch:
 

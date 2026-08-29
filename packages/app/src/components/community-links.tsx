@@ -39,7 +39,7 @@ export function CommunityLinks() {
         onPress={handleOpenLicense}
         testID="community-links-license"
       >
-        AGPL license
+        Apache license
       </Button>
       <Button
         variant="ghost"

@@ -13,11 +13,7 @@ import {
 } from "./daemon/local-daemon.js";
 import { tryConnectToDaemon } from "../utils/client.js";
 import { formatPairingInstructions } from "../output/pairing.js";
-import {
-  confirmRelayPairing,
-  printDirectConnectionGuidance,
-  resolveLocalPairingOffer,
-} from "./daemon/pair.js";
+import { printDirectConnectionGuidance, resolveLocalPairingOffer } from "./daemon/pair.js";
 
 interface OnboardOptions extends DaemonStartOptions {
   timeout?: string;
@@ -269,9 +265,9 @@ function printNextSteps(pairingUrl: string | null, paseoHome: string, richUi: bo
     pairingUrl
       ? "1. Open HanabiCode and scan the QR code above, or paste the pairing link."
       : "1. Open HanabiCode and connect to your daemon.",
-    "2. Releases: https://github.com/Dey11/hanabicode/releases/latest",
-    "3. Setup: https://github.com/Dey11/hanabicode/blob/main/docs/fork-docs/development.md",
-    "4. Relay: https://github.com/Dey11/hanabicode/blob/main/docs/fork-docs/relay-options.md",
+    "2. Releases: https://github.com/Dey11/paseo/releases/latest",
+    "3. Setup: https://github.com/Dey11/paseo/blob/hanabicode/docs/fork-docs/development.md",
+    "4. Connectivity: https://github.com/Dey11/paseo/blob/hanabicode/docs/fork-docs/connectivity-and-services.md",
     '5. Example: hanabicode run --output-schema schema.json "extract fields"',
   ];
   const quickReferenceLines = [
@@ -466,21 +462,16 @@ export async function runOnboard(options: OnboardOptions): Promise<void> {
     return;
   }
 
-  let pairing = await resolveLocalPairingOffer({
+  const pairing = await resolveLocalPairingOffer({
     paseoHome,
     enableRelay: options.relay === true,
   });
 
   if (!pairing.relayEnabled) {
-    const shouldEnable = richUi ? await confirmRelayPairing() : false;
-    if (!shouldEnable) {
-      printDirectConnectionGuidance();
-      printNextSteps(null, paseoHome, richUi);
-      if (richUi) outro("HanabiCode daemon is running.");
-      return;
-    }
-    pairing = await resolveLocalPairingOffer({ paseoHome, enableRelay: true });
-    log.success("Relay enabled");
+    printDirectConnectionGuidance();
+    printNextSteps(null, paseoHome, richUi);
+    if (richUi) outro("HanabiCode daemon is running.");
+    return;
   }
 
   if (!pairing.url) {

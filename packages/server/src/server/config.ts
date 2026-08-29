@@ -555,11 +555,7 @@ export function resolveConfigFromPersisted(
   const resolvedOptions = options ?? {};
   const env = resolvedOptions.env ?? process.env;
   const cli = resolvedOptions.cli;
-  // COMPAT(relayOptInDefault): homes created before relay became opt-in may
-  // omit daemon.relay.enabled. Preserve their explicit migration window until
-  // 2027-01-31; fresh HanabiCode homes persist false.
-  const relayEnabledFallback =
-    resolvedOptions.relayEnabledFallback ?? persisted.daemon?.relay?.enabled === undefined;
+  const relayEnabledFallback = resolvedOptions.relayEnabledFallback ?? false;
 
   const listen = resolveListenAddress(env, cli, persisted);
   const {

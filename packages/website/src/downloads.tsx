@@ -28,7 +28,7 @@ export function downloadUrls(release: ReleaseAssetInfo) {
 
 export const appStoreUrl = "https://apps.apple.com/app/paseo-pocket-engineer/id6758887924";
 export const playStoreUrl = "https://play.google.com/store/apps/details?id=sh.paseo";
-export const webAppUrl = "https://github.com/Dey11/hanabicode/releases";
+export const webAppUrl = "https://github.com/Dey11/paseo/releases";
 
 type Platform = "mac-silicon" | "mac-intel" | "windows" | "linux";
 

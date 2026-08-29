@@ -3,9 +3,9 @@
 <p align="center">Run and control Claude Code, Codex, Copilot, OpenCode, and Pi agents from desktop, Android, web, or the CLI.</p>
 
 <p align="center">
-  <a href="https://github.com/Dey11/hanabicode/releases">Releases</a> ·
+  <a href="https://github.com/Dey11/paseo/releases">Releases</a> ·
   <a href="docs/fork-docs/distribution.md">Install and release guide</a> ·
-  <a href="docs/fork-docs/relay-options.md">Connectivity</a> ·
+  <a href="docs/fork-docs/connectivity-and-services.md">Connectivity</a> ·
   <a href="LICENSE">License</a>
 </p>
 
@@ -25,9 +25,9 @@ forwarding workspace ports from a remote host to the desktop app.
 
 ## Install
 
-Download the latest artifacts from [GitHub Releases](https://github.com/Dey11/hanabicode/releases).
-The initial macOS builds are ad-hoc signed and not notarized; Windows builds are
-unsigned. Android releases are signed with HanabiCode's Android release key.
+Download the latest artifacts from [GitHub Releases](https://github.com/Dey11/paseo/releases).
+The initial macOS builds are ad-hoc signed and not notarized. Android releases
+are signed with HanabiCode's Android release key.
 
 See [the installation and release guide](docs/fork-docs/distribution.md) for
 platform-specific installation steps, signing status, release secrets, and the
@@ -47,30 +47,30 @@ npm run dev:desktop
 Useful commands:
 
 ```bash
-docker run -d --name paseo \
-  -p 6767:6767 \
+docker run -d --name hanabicode \
+  -p 6769:6769 \
   -e PASEO_PASSWORD=change-me \
-  -v "$PWD/paseo-home:/home/paseo" \
+  -v "$PWD/hanabicode-home:/home/hanabicode" \
   -v "$PWD:/workspace" \
-  ghcr.io/getpaseo/paseo:latest
+  ghcr.io/dey11/hanabicode:latest
 ```
 
-Open `http://localhost:6767` after it starts. Extend the base image with the agent CLIs you use, then provide credentials through environment variables or the persistent `/home/paseo` volume. See the [Docker documentation](docs/docker.md) for full setup details.
+Open `http://localhost:6769` after it starts. Extend the base image with the agent CLIs you use, then provide credentials through environment variables or the persistent `/home/hanabicode` volume. See the [Docker documentation](docs/docker.md) for full setup details.
 
 ## CLI
 
 Everything you can do in the app, you can do from the terminal.
 
 ```bash
-paseo run --provider claude/opus-4.6 "implement user authentication"
-paseo run --provider codex/gpt-5.5 --worktree feature-x "implement feature X"
+hanabicode run --provider claude/opus-4.6 "implement user authentication"
+hanabicode run --provider codex/gpt-5.5 --worktree feature-x "implement feature X"
 
-paseo ls                           # list running agents
-paseo attach abc123                # stream live output
-paseo send abc123 "also add tests" # follow-up task
+hanabicode ls                           # list running agents
+hanabicode attach abc123                # stream live output
+hanabicode send abc123 "also add tests" # follow-up task
 
 # run on a remote daemon; --cwd is a path on that host
-paseo run --host workstation.local:6767 --cwd /workspace "run the full test suite"
+hanabicode run --host workstation.local:6769 --cwd /workspace "run the focused tests"
 ```
 
 See the [full CLI reference](https://paseo.sh/docs/cli) for more.

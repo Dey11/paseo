@@ -144,7 +144,7 @@ buildNpmPackage rec {
 
   meta = {
     description = "Self-hosted daemon for Claude Code, Codex, and OpenCode";
-    homepage = "https://github.com/Dey11/hanabicode";
+    homepage = "https://github.com/Dey11/paseo";
     license = lib.licenses.agpl3Plus;
     mainProgram = "hanabicode";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;

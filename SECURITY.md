@@ -88,4 +88,4 @@ HanabiCode only talks to a forge host that is either a known cloud host or one t
 
 ## Reporting vulnerabilities
 
-If you discover a security vulnerability in HanabiCode, use [GitHub private vulnerability reporting](https://github.com/Dey11/hanabicode/security/advisories/new). Do not open a public issue. Upstream-only vulnerabilities should be reported through [Paseo's security policy](https://github.com/getpaseo/paseo/security/policy).
+If you discover a security vulnerability in HanabiCode, use [GitHub private vulnerability reporting](https://github.com/Dey11/paseo/security/advisories/new). Do not open a public issue. Upstream-only vulnerabilities should be reported through [Paseo's security policy](https://github.com/getpaseo/paseo/security/policy).

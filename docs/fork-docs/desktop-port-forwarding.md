@@ -1,6 +1,6 @@
 # Desktop workspace port forwarding
 
-Status: implemented for Electron desktop with a Linux daemon. Automated coverage exercises the binary protocol, real loopback sockets, Linux `/proc` attribution, flow control, reconnect cleanup, IPC validation, and UI state. A macOS packaged-development build has been verified manually for HTTP forwarding to the VPS. WebSocket/HMR, relay-loss recovery, and control-responsiveness remain release-gate checks against the configured HanabiCode relay; Windows desktop is untested.
+Status: implemented for Electron desktop with a Linux daemon. Automated coverage exercises the binary protocol, real loopback sockets, Linux `/proc` attribution, flow control, reconnect cleanup, IPC validation, and UI state. A macOS packaged-development build has been verified manually for HTTP forwarding to the VPS. WebSocket/HMR, transport-loss recovery, and control-responsiveness remain release-gate checks against the direct Tailscale path; Windows desktop is untested.
 
 Use the [fork development guide](development.md#desktop-port-forwarding-loop) for local setup. The feature adds no environment variables: it reuses the selected host's existing TCP password or relay pairing offer.
 
@@ -50,7 +50,7 @@ Forwards are explicit and last for the current desktop session. Do not restore t
 Mac browser
   -> Electron main-process loopback listener
   -> dedicated encrypted HanabiCode tunnel connection
-  -> configured HanabiCode relay (opaque frame routing)
+  -> direct Tailscale connection
   -> VPS daemon port-forward service
   -> 127.0.0.1:<remote port> on the VPS
 ```
@@ -71,7 +71,7 @@ The tunnel uses the same v2 relay contract as normal HanabiCode traffic:
 - the relay supports bidirectional binary frames;
 - tunnel chunks will stay far below the relay's frame limit.
 
-The release configuration must point at the fork-owned relay described in [relay-options.md](relay-options.md). Do not ship `relay.paseo.sh` as a default or silently redirect profiles created by an upstream client. Cap streams, queued bytes, and frame sizes in both endpoints, keep direct/Tailscale recovery usable, and run a bounded HTTP, WebSocket, and reconnect smoke test against the deployed HanabiCode relay.
+HanabiCode releases must not point at `relay.paseo.sh` or another relay by default. Cap streams, queued bytes, and frame sizes in both endpoints, keep the direct Tailscale profile usable, and run bounded HTTP, WebSocket, and reconnect smoke tests over Tailscale. Repeat them during the deferred [Cloudflare Tunnel](cloudflare-tunnel.md) phase before accepting that path.
 
 ## Domain model
 
@@ -209,9 +209,9 @@ Each ticket should fit one focused development session. Complete them in depende
 
 **Decision:** Can a dedicated fork client carry bounded TCP data through the relay without changing it or starving normal HanabiCode traffic?
 
-Build a disposable, manual-port spike with no sidebar UI. Open one dedicated encrypted connection, carry chunked data to a daemon loopback echo/HTTP server, and verify WebSocket traffic. Exercise normal agent/terminal traffic at the same time. Test locally against the open-source relay, then run one bounded smoke test through the deployed HanabiCode relay.
+Build a disposable, manual-port spike with no sidebar UI. Open one dedicated connection, carry chunked data to a daemon loopback echo/HTTP server, and verify WebSocket traffic. Exercise normal agent/terminal traffic at the same time. Test locally, then run one bounded smoke test through the direct Tailscale path.
 
-**Exit:** HTTP, WebSocket, bidirectional data, clean close, and one reconnect behave as specified; normal control traffic remains responsive; production relay emits no rejection attributable to fork identity or frame type. Record latency, close codes, and measured queue sizes. If this fails, stop the plan and decide between a fork-owned relay and Tailscale transport.
+**Exit:** HTTP, WebSocket, bidirectional data, clean close, and one reconnect behave as specified; normal control traffic remains responsive. Record latency, close codes, and measured queue sizes. If this fails, stop the plan and diagnose the direct transport before adding another network path.
 
 ### 2. Specify and test tunnel binary frames
 
@@ -257,7 +257,7 @@ Test slow consumers, large responses, uploads, many browser asset connections, H
 
 ### 9. Complete desktop acceptance
 
-Run focused automated checks, real-Electron E2E, and packaged-app QA. The primary manual matrix is macOS desktop to a Linux VPS through the configured HanabiCode relay. Also run the deterministic tunnel tests on direct/local transport. Record Windows and Linux desktop as tested or untested; do not claim coverage without evidence.
+Run focused automated checks, real-Electron E2E, and packaged-app QA. The primary manual matrix is macOS desktop to a Linux VPS through Tailscale. Also run the deterministic tunnel tests on direct/local transport. Record Windows and Linux desktop as tested or untested; do not claim coverage without evidence.
 
 Acceptance scenarios:
 
@@ -274,7 +274,7 @@ Acceptance scenarios:
 
 ### 10. Document operation and fallback
 
-After implementation, update the architecture, protocol, testing, security, connectivity, and fork docs at the sections that own the new behavior. Document Tailscale/direct recovery and the fork-owned relay escape hatch. Do not describe the feature as mobile-ready until mobile lifecycle and browser behavior have their own design and evidence.
+After implementation, update the architecture, protocol, testing, security, connectivity, and fork docs at the sections that own the new behavior. Document Tailscale recovery and the deferred Cloudflare acceptance gate. Do not describe the feature as mobile-ready until mobile lifecycle and browser behavior have their own design and evidence.
 
 ## Explicit non-goals
 

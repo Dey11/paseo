@@ -39,6 +39,8 @@ import {
 } from "@/components/sidebar-resize-handle-layout";
 import { resolveExplorerSidebarWidth } from "@/components/explorer-sidebar-layout";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
+import { getIsElectron } from "@/constants/platform";
+import { PortsPane } from "@/ports/ports-pane";
 
 function logExplorerSidebar(_event: string, _details: Record<string, unknown>): void {}
 
@@ -358,15 +360,15 @@ function ExplorerSidebarContent({
     enabled: isOpen,
     timelineEnabled: activeTab === "pr",
   });
-  const requestedTab: ExplorerTab =
-    !isGit && (activeTab === "changes" || activeTab === "pr") ? "files" : activeTab;
-  const resolvedTab: ExplorerTab = requestedTab === "pr" && !showPrTab ? "changes" : requestedTab;
+  const showPortsTab = getIsElectron();
+  const resolvedTab = resolveExplorerTab({ activeTab, isGit, showPortsTab, showPrTab });
   const prTabLabel = formatPrTabLabel(prPane.prNumber);
   const availableTabs = useMemo<ExplorerTab[]>(() => {
     const tabs: ExplorerTab[] = isGit ? ["changes", "files"] : ["files"];
+    if (showPortsTab) tabs.push("ports");
     if (isGit && showPrTab) tabs.push("pr");
     return tabs;
-  }, [isGit, showPrTab]);
+  }, [isGit, showPortsTab, showPrTab]);
   const { mountedTabIds } = useMountedTabSet({
     activeTabId: resolvedTab,
     allTabIds: availableTabs,
@@ -465,6 +467,15 @@ function ExplorerSidebarContent({
               workspaceId={workspaceId}
               workspaceRoot={workspaceRoot}
               onOpenFile={onOpenFile}
+            />
+          </RetainedPanel>
+        ) : null}
+        {mountedTabIds.has("ports") ? (
+          <RetainedPanel active={resolvedTab === "ports"}>
+            <PortsPane
+              active={isOpen && resolvedTab === "ports"}
+              serverId={serverId}
+              workspaceId={workspaceId}
             />
           </RetainedPanel>
         ) : null}

@@ -1,4 +1,4 @@
-import { confirm, isCancel, log } from "@clack/prompts";
+import { log } from "@clack/prompts";
 import { Command } from "commander";
 import chalk from "chalk";
 import {
@@ -20,7 +20,6 @@ interface PairOptions {
 
 export interface PairCommandDependencies {
   resolveOffer: typeof resolveLocalPairingOffer;
-  confirmRelay: typeof confirmRelayPairing;
   printDirectGuidance: typeof printDirectConnectionGuidance;
   isInteractive: () => boolean;
   output: PairCommandOutput;
@@ -41,8 +40,8 @@ export interface PairingOffer {
 }
 
 const PAIRING_DAEMON_RPC_TIMEOUT_MS = 1500;
-const RELAY_DOCS_URL =
-  "https://github.com/Dey11/hanabicode/blob/main/docs/fork-docs/relay-options.md";
+const CONNECTIVITY_DOCS_URL =
+  "https://github.com/Dey11/paseo/blob/hanabicode/docs/fork-docs/connectivity-and-services.md";
 
 function createProcessOutput(): PairCommandOutput {
   return {
@@ -147,24 +146,12 @@ async function resolveDaemonPairingOffer(
   }
 }
 
-export async function confirmRelayPairing(): Promise<boolean> {
-  log.message(
-    "Your connection is end-to-end encrypted. HanabiCode cannot read your code or messages.",
-  );
-  log.message(`Learn how it works: ${RELAY_DOCS_URL}`);
-  const answer = await confirm({
-    message: "Enable relay to pair a device?",
-    initialValue: false,
-  });
-  return !isCancel(answer) && answer;
-}
-
 export function printDirectConnectionGuidance(): void {
   console.log("Daemon is running with relay off.");
   console.log(
-    "To connect another device directly, use the daemon's TCP address over your LAN, Tailscale, or another VPN.",
+    "Add the daemon's TCP address as a direct host over Tailscale or another private network.",
   );
-  console.log(`Learn more: ${RELAY_DOCS_URL}#direct-connections`);
+  console.log(`Learn more: ${CONNECTIVITY_DOCS_URL}`);
 }
 
 export async function runPairCommand(
@@ -174,7 +161,6 @@ export async function runPairCommand(
   if (options.home) process.env.PASEO_HOME = options.home;
   const dependencies: PairCommandDependencies = {
     resolveOffer: resolveLocalPairingOffer,
-    confirmRelay: confirmRelayPairing,
     printDirectGuidance: printDirectConnectionGuidance,
     isInteractive: () => Boolean(process.stdin.isTTY && process.stdout.isTTY),
     output: createProcessOutput(),
@@ -182,22 +168,13 @@ export async function runPairCommand(
   };
 
   const paseoHome = resolvePaseoHome();
-  let pairing = await dependencies.resolveOffer({
+  const pairing = await dependencies.resolveOffer({
     paseoHome,
     enableRelay: options.relay === true,
   });
 
-  const canPrompt = dependencies.isInteractive() && options.json !== true;
-  if (!pairing.relayEnabled && canPrompt) {
-    const shouldEnable = await dependencies.confirmRelay();
-    if (!shouldEnable) {
-      dependencies.printDirectGuidance();
-      dependencies.output.writeStderr(`${chalk.yellow("No pairing QR was created.")}\n`);
-      dependencies.output.setExitCode(1);
-      return;
-    }
-    pairing = await dependencies.resolveOffer({ paseoHome, enableRelay: true });
-    dependencies.output.success("Relay enabled");
+  if (!pairing.relayEnabled && options.json !== true) {
+    dependencies.printDirectGuidance();
   }
 
   outputPairingResult(pairing, options, dependencies.output);
@@ -214,12 +191,12 @@ function outputPairingResult(
         `${JSON.stringify({
           code: "RELAY_DISABLED",
           message: "Relay pairing is disabled for this daemon.",
-          action: "Run hanabicode daemon pair --relay --json to enable it explicitly.",
+          action: "Add a direct host over Tailscale or the configured private network.",
         })}\n`,
       );
     } else {
       output.writeStderr(`${chalk.red("Relay pairing is disabled for this daemon.")}\n`);
-      output.writeStderr(`${chalk.yellow("Run hanabicode daemon pair --relay to enable it.")}\n`);
+      output.writeStderr(`${chalk.yellow("Use a direct Tailscale or private-network host.")}\n`);
     }
     output.setExitCode(1);
     return;

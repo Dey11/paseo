@@ -1781,7 +1781,7 @@ export const ru: TranslationResources = {
   serviceUrl: {
     title: "Открыть URL сервиса",
     message: "Открыть {{url}}?",
-    inPaseo: "В Paseo",
+    inHanabiCode: "В HanabiCode",
     externalBrowser: "Внешний браузер",
     dontAskAgain: "Больше не спрашивать",
   },

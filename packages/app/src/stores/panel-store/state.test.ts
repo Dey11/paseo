@@ -173,12 +173,11 @@ describe("panel-store migration", () => {
     expect(state.mobilePanel).toBeUndefined();
   });
 
-  it("preserves the Electron-only ports tab in current persisted state", () => {
+  it("preserves the ports tab in current persisted state", () => {
     const key = buildExplorerCheckoutKey("server-1", "/tmp/repo")!;
     const state = migratePanelState(
       { explorerTab: "ports", explorerTabByCheckout: { [key]: "ports" } },
       13,
-      { isWeb: true },
     );
 
     expect(state.explorerTab).toBe("ports");

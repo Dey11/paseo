@@ -1,182 +1,148 @@
-# HanabiCode releases
+# HanabiCode distribution
 
-HanabiCode publishes one GitHub Release from one existing version tag. `.github/workflows/hanabicode-release.yml` builds every artifact from the exact tagged commit. EAS Build is not used.
+`.github/workflows/hanabicode-release.yml` turns one existing `hanabicode-v*` tag into one GitHub Release. It builds macOS ARM64 and x64 installers, a signed Android APK, and a multi-architecture daemon image. The workflow creates a draft first and publishes it only after every required job succeeds.
 
 ## Identity
 
-| Concern                            | Value                                 |
-| ---------------------------------- | ------------------------------------- |
-| Product                            | `HanabiCode`                          |
-| Repository                         | `Dey11/hanabicode`                    |
-| Desktop and Android application ID | `com.dey.hanabicode`                  |
-| Development Android application ID | `com.dey.hanabicode.debug`            |
-| URL scheme                         | `hanabicode`                          |
-| Desktop executable and CLI         | `HanabiCode` and `hanabicode`         |
-| Default state                      | `~/.hanabicode`                       |
-| Default daemon listener            | `127.0.0.1:6769`                      |
-| Updater                            | GitHub Releases in `Dey11/hanabicode` |
+| Concern            | Value                                           |
+| ------------------ | ----------------------------------------------- |
+| Repository         | `Dey11/paseo`                                   |
+| Release branch     | `hanabicode`                                    |
+| Version line       | Independent `0.1.x` line                        |
+| Tags               | `hanabicode-vX.Y.Z`, `hanabicode-vX.Y.Z-beta.N` |
+| Production app ID  | `com.dey.hanabicode`                            |
+| Development app ID | `com.dey.hanabicode.debug`                      |
+| URL scheme         | `hanabicode`                                    |
+| CLI                | `hanabicode`                                    |
+| State              | `~/.hanabicode`                                 |
+| Daemon listener    | `127.0.0.1:6769`                                |
+| Daemon image       | `ghcr.io/dey11/hanabicode`                      |
 
-The internal `@getpaseo/*` package namespace, `PASEO_*` environment prefix, protocol identifiers, and `.paseo` project metadata remain compatibility APIs. They do not control the installed product identity.
-
-## Artifacts
-
-The manual **HanabiCode Release** workflow creates a draft first and publishes it only after all jobs pass:
-
-- macOS ARM64 and x64 DMG, ZIP, blockmaps, and merged updater manifest;
-- Windows x64 and ARM64 NSIS installers, ZIPs, blockmaps, and updater manifest;
-- one signed universal Android APK;
-- `HanabiCode-<tag>-SHA256SUMS.txt`.
-
-macOS builds are ad-hoc signed and not notarized. Windows builds are unsigned. Those choices are suitable for testing on your own devices and produce first-launch operating-system warnings. Add Apple Developer ID signing and notarization later; do not pretend the current artifacts are normally signed.
-
-Every app build receives `EXPO_PUBLIC_HANABICODE_SOURCE_COMMIT` from the tag. Settings → About links to that exact source tree and the AGPL license.
+The internal `@getpaseo/*` package namespace, `PASEO_*` environment prefix, protocol identifiers, and `.paseo` project metadata remain compatibility APIs. They are not publication targets.
 
 ## One-time GitHub setup
 
-Create a protected GitHub environment named `release`:
+Create a protected `release` environment. Require reviewer approval if another person will ever hold release authority.
+
+Generate one permanent Android release key on a trusted machine and keep two offline backups:
 
 ```bash
-gh api --method PUT repos/Dey11/hanabicode/environments/release
-```
-
-Generate the Android release key on a trusted machine and keep two offline backups:
-
-```bash
-keytool -genkeypair -v \
-  -storetype PKCS12 \
+keytool -genkeypair \
   -keystore hanabicode-android-release.p12 \
-  -alias hanabicode-release \
+  -storetype PKCS12 \
+  -alias hanabicode \
   -keyalg RSA \
-  -keysize 2048 \
+  -keysize 4096 \
   -validity 10000
 ```
 
-Record its SHA-256 certificate fingerprint:
+Record the signing certificate fingerprint:
 
 ```bash
-keytool -list -v \
-  -keystore hanabicode-android-release.p12 \
-  -alias hanabicode-release
+keytool -list -v -keystore hanabicode-android-release.p12 -alias hanabicode
 ```
 
-Set all five secrets on the `release` environment. The workflow accepts a fingerprint with or without colons.
+Add these environment secrets without writing their values to the repository or shell history:
 
-```bash
-base64 < hanabicode-android-release.p12 | tr -d '\n' | \
-  gh secret set ANDROID_KEYSTORE_BASE64 --repo Dey11/hanabicode --env release
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+- `ANDROID_CERT_SHA256`
 
-gh secret set ANDROID_KEYSTORE_PASSWORD --repo Dey11/hanabicode --env release
-gh secret set ANDROID_KEY_ALIAS --repo Dey11/hanabicode --env release
-gh secret set ANDROID_KEY_PASSWORD --repo Dey11/hanabicode --env release
-gh secret set ANDROID_CERT_SHA256 --repo Dey11/hanabicode --env release
-```
+The workflow decodes the keystore only into the runner's temporary directory. It verifies the APK and the expected certificate fingerprint with `apksigner` before upload. Losing this key prevents a future APK from updating an installed HanabiCode app.
 
-The last four commands prompt without echoing the value. Never put the keystore, passwords, certificates, or GitHub secrets in `.env`, Actions YAML, release assets, or Git.
-
-The Android config plugin writes only Gradle property references. GitHub decodes the keystore into the runner's temporary directory and injects the four signing properties for that job. `apksigner` verifies both the APK and its expected public certificate before upload.
+GitHub Actions also needs permission to create packages for the repository. The release job requests `packages: write` and uses the scoped `GITHUB_TOKEN`; no separate GHCR password belongs in repository secrets.
 
 ## Cut a release
 
-Start from a clean, reviewed branch. The version command updates every workspace, creates a release commit, and tags it.
+Prepare and review the source locally:
 
 ```bash
-git switch main
-git pull --ff-only
-
+git switch hanabicode
+git fetch origin upstream
+git merge --ff-only origin/hanabicode
 npm run release:check
 
-# Pick exactly one.
-npm run version:all:patch
-# npm run version:all:minor
+# Pick exactly one approved transition.
+npm run version:hanabicode:patch
+# npm run version:hanabicode:minor
+# npm run version:hanabicode:beta:patch
+# npm run version:hanabicode:beta:next
+# npm run version:hanabicode:promote
 
 git show --stat --oneline HEAD
 git tag --points-at HEAD
-git push origin main
+```
+
+Push only after the commit and tag are approved:
+
+```bash
+git push origin hanabicode
 git push origin "$(git tag --points-at HEAD)"
 ```
 
-Dispatch the manual workflow with that existing tag:
+The tag push starts the workflow. To retry jobs for an unchanged tag and draft:
 
 ```bash
 gh workflow run hanabicode-release.yml \
-  --repo Dey11/hanabicode \
+  --repo Dey11/paseo \
+  --ref hanabicode \
   -f tag="$(git tag --points-at HEAD)"
-
-gh run watch --repo Dey11/hanabicode
 ```
 
-Do not move or reuse a tag. Fix a failed release in a new commit and cut a new version. The workflow leaves a draft when any platform fails, so a partial release is never presented as complete.
-
-Root scripts that publish the upstream `@getpaseo/*` npm namespace are intentionally unavailable in HanabiCode. A GitHub installer release does not require npm publication.
+The workflow rejects tags outside the `hanabicode` branch and versions that do not match the tagged manifests. Never move or reuse a tag.
 
 ## Install and verify
 
 ### macOS
 
-Download the DMG matching the Mac CPU and drag HanabiCode into Applications. Because this first release is not notarized, right-click HanabiCode and choose **Open**. If macOS still blocks it, use **System Settings → Privacy & Security → Open Anyway** for that exact app.
+Download the DMG matching the Mac CPU and drag HanabiCode into Applications. The initial build is ad-hoc signed and not notarized, so open it with Finder's **Open** command or approve that exact app under **System Settings → Privacy & Security**.
 
-Verify the ad-hoc signature:
+Verify the signature:
 
 ```bash
 codesign --verify --deep --strict --verbose=2 /Applications/HanabiCode.app
 ```
 
-Gatekeeper assessment is expected to reject an unnotarized build. After Apple signing is added, `spctl --assess --type execute --verbose=4 /Applications/HanabiCode.app` must pass on a clean Mac.
-
-Launch HanabiCode from Finder. It owns its own bundle ID, user-data directory, `~/.hanabicode` daemon home, port `6769`, scheme, and single-instance lock, so it can run beside official Paseo. Pair it with the HanabiCode daemon and test agent control, terminal traffic, port forwarding, reconnect, app restart, and installation of the next HanabiCode version.
-
-### Windows
-
-Install the EXE matching the machine architecture. Windows will show **Unknown publisher** and may require **More info → Run anyway**. Confirm Start menu launch, the bundled `hanabicode` CLI, pairing, port forwarding, reconnect, and upgrade to the next version without losing state.
+Gatekeeper assessment is expected to reject this unnotarized build. Test launch, updates, reconnect, terminals, agents, and port forwarding on both architectures before treating the release as accepted.
 
 ### Android
 
-Allow installation from the browser or file manager used to download the APK, then install it. Verify the downloaded certificate when Android SDK build tools are available:
+Install the APK from the GitHub Release. Confirm the certificate when Android SDK build tools are available:
 
 ```bash
 apksigner verify --verbose --print-certs HanabiCode-v*-android.apk
 ```
 
-Confirm the printed SHA-256 fingerprint matches the backed-up release key. Test pairing, terminal traffic, reconnect, background/resume, and installing the next signed APK over the first without uninstalling. Losing the signing key prevents future APKs from updating existing installs.
+Test connection setup, terminal and agent traffic, background/resume, reconnect, and an in-place upgrade from the previous APK.
 
-## Apple signing later
+### Daemon image
 
-Join the Apple Developer Program, create a **Developer ID Application** certificate, export the certificate and private key as a password-protected PKCS#12 file, and create notarization credentials. Store them only in the protected `release` environment. Then update the macOS job to require signing, hardened runtime, and notarization, and remove the release warning only after both architectures pass installation checks on clean Macs.
-
-The likely secrets are `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. Follow the current Electron Builder and Apple notarization documentation when implementing this because their credential flows change.
-
-## Windows signing later
-
-Use a HanabiCode-owned Authenticode certificate or a managed Windows signing service. Keep its credentials in the protected environment and make the workflow fail if signing is expected but absent. A valid signature identifies the publisher; SmartScreen reputation may still take time to build.
-
-## Local source build
-
-Use the repository's normal prerequisites and commands:
+Pull the exact release version instead of `latest` for production-like use:
 
 ```bash
-npm ci
-npm run build:server
-npm run build:app-deps
+docker pull ghcr.io/dey11/hanabicode:0.1.0
 ```
 
-Desktop packaging is platform-native: build macOS artifacts on macOS and Windows artifacts on Windows. Android needs Java 21 and the Android SDK. GitHub Actions is the supported cross-platform release builder.
+Stable releases also move `latest`; betas never do. Follow [Docker](../docker.md) for state, password, mounts, and listener configuration.
 
-Use `.env.example` and `packages/server/.env.example` only as templates for HanabiCode runtime configuration. The inherited `PASEO_*` prefix is deliberate. Do not commit a populated `.env`.
+## Deferred release work
 
-## Release gate
+- Apple Developer ID signing and notarization
+- app stores, EAS, iOS, and F-Droid
+- Windows and Linux desktop artifacts
+- npm publication
+- Cloudflare Tunnel activation
 
-Before publishing the first release:
+Cloudflare is a separate connectivity phase after the local, Tailscale, and release-artifact checks pass. See [Cloudflare Tunnel](cloudflare-tunnel.md).
 
-- Replace upstream Paseo logo/icon assets or obtain permission to use them. The release pipeline deliberately keeps the existing assets until HanabiCode has its own artwork; the AGPL copyright license does not grant trademark rights.
+## First-release gate
+
 - Back up the Android signing key and configure all five protected secrets.
-- Confirm HanabiCode and official Paseo run together without shared state or ports.
-- Confirm updater URLs and release notes point only at `Dey11/hanabicode`.
-- Confirm no tag-triggered workflow deploys to official Paseo, Expo, Cloudflare, npm, or release targets.
-- Confirm macOS and Windows warnings match the documented unsigned policy.
-- Confirm Android signature verification and upgrade continuity.
-- Confirm About exposes the exact source, license, fork notice, app version, and daemon version.
-- Confirm release assets include checksums, `LICENSE`, and `NOTICE` through the packaged applications.
-
-## EAS fallback
-
-EAS is not part of the HanabiCode release path. If the direct Gradle workflow becomes too expensive to maintain, create a new fork-owned Expo account and project, restore a fork-owned `eas.json`, and use new credentials. Never restore the official Expo owner, project ID, update channel, or store credentials. See [Android EAS fallback](android-eas-fallback.md).
+- Confirm HanabiCode and Paseo can run together without shared state, ports, app IDs, or updater state.
+- Confirm every updater and source link targets `Dey11/paseo`.
+- Confirm no tag-triggered workflow targets official npm, Expo, Cloudflare, relay, container, or GitHub resources.
+- Confirm both macOS architectures install and the Android signature upgrades an earlier build.
+- Confirm release assets include checksums, `LICENSE`, and `NOTICE`.
+- Replace inherited logo assets or confirm their separate use rights before broad distribution.

@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { BrowserKeyboardPolicy } from "./features/browser-keyboard/index.js";
 import type { DesktopWindowChromeMode } from "./window/chrome.js";
+import type {
+  DesktopPortForwardingCreateInput,
+  DesktopPortForwardingListInput,
+  DesktopPortForwardingSnapshot,
+  DesktopPortForwardingStopInput,
+  DesktopPortForwardingUnwatchInput,
+} from "./features/port-forwarding/types.js";
 
 // This preload runs in Electron's sandbox and is tsc-compiled (not bundled), so it MUST
 // NOT emit any runtime module load other than "electron" — a require() of a local or

@@ -1970,8 +1970,7 @@ export class Session {
       this.dispatchOrchestrationSkillsMessage(msg) ??
       this.dispatchPluginDirectoryMessage(msg) ??
       this.dispatchPluginMessage(msg) ??
-      this.dispatchTerminalMessage(msg) ??
-      this.dispatchPortForwardingMessage(msg) ??
+      this.dispatchTerminalAndPortForwardingMessage(msg) ??
       this.dispatchScheduleMessage(msg) ??
       this.dispatchMiscMessage(msg);
     if (promise) await promise;
@@ -2607,7 +2606,9 @@ export class Session {
     }
   }
 
-  private dispatchTerminalMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+  private dispatchTerminalAndPortForwardingMessage(
+    msg: SessionInboundMessage,
+  ): Promise<void> | undefined {
     switch (msg.type) {
       case "start_workspace_script_request":
         return this.handleStartWorkspaceScriptRequest(msg);
@@ -2617,20 +2618,13 @@ export class Session {
         return this.handleWorkspaceScriptStartRequest(msg);
       case "workspace.script.stop.request":
         return this.handleWorkspaceScriptStopRequest(msg);
-      default:
-        return this.terminalController.dispatch(msg);
-    }
-  }
-
-  private dispatchPortForwardingMessage(msg: SessionInboundMessage): Promise<void> | undefined {
-    switch (msg.type) {
       case "workspace.port.watch.request":
       case "workspace.port.unwatch.request":
       case "workspace.port_forward.create.request":
       case "workspace.port_forward.delete.request":
         return this.portForwarding.handleMessage(msg);
       default:
-        return undefined;
+        return this.terminalController.dispatch(msg);
     }
   }
 

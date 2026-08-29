@@ -91,6 +91,7 @@ import { isElectronRuntime } from "@/desktop/host";
 import { useDesktopAppUpdater } from "@/desktop/updates/use-desktop-app-updater";
 import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
 import { resolveAppVersion } from "@/utils/app-version";
+import { SOURCE_COMMIT } from "@/constants/product";
 import { useAppDiagnosticStore } from "@/diagnostics/store";
 import { settingsStyles } from "@/styles/settings";
 import { THINKING_TONE_NATIVE_PCM_BASE64 } from "@/utils/thinking-tone.native-pcm";
@@ -609,8 +610,8 @@ function AboutSection({ appVersion, appVersionText, isDesktopApp }: AboutSection
             <View style={settingsStyles.rowContent}>
               <Text style={settingsStyles.rowTitle}>Modified open-source fork</Text>
               <Text style={settingsStyles.rowHint}>
-                HanabiCode is a modified fork of Paseo. It is distributed under the GNU AGPL and is
-                not endorsed by the upstream project.
+                HanabiCode is a modified fork of Paseo. It is distributed under Apache License 2.0
+                and is not endorsed by the upstream project.
               </Text>
             </View>
             {SOURCE_COMMIT ? (
@@ -622,7 +623,7 @@ function AboutSection({ appVersion, appVersionText, isDesktopApp }: AboutSection
               <Text style={settingsStyles.rowTitle}>Your rights</Text>
               <Text style={settingsStyles.rowHint}>
                 Source is available for this build. You may inspect, modify, and redistribute it
-                under the AGPL. HanabiCode comes without warranty.
+                under Apache License 2.0. HanabiCode comes without warranty.
               </Text>
             </View>
           </View>

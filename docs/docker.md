@@ -4,7 +4,7 @@ HanabiCode publishes a container image for running the daemon on a server, VM,
 NAS, or homelab box. The image also serves the bundled browser web UI, so one
 container gives you both the daemon API and a self-hosted UI.
 
-The image is a fork of the AGPL-licensed Paseo daemon image; upstream copyright
+The image is a fork of the Apache-2.0-licensed Paseo daemon image; upstream copyright
 and license notices are retained. The image source lives in
 [`docker/`](../docker/).
 
@@ -184,9 +184,9 @@ IPs and `localhost` are allowed by default.
 
 - Set `PASEO_PASSWORD` for any published port or network-reachable deployment.
 - Prefer HTTPS at the reverse proxy for direct browser access.
-- Use the fork-owned HanabiCode relay for untrusted networks or mobile access
-  when you do not want to expose the daemon port directly. See
-  [docs/fork-docs/relay-options.md](fork-docs/relay-options.md).
+- Use Tailscale for the first private remote path. Add the deferred Cloudflare
+  private route only after the release artifacts pass their acceptance gate.
+  See [fork connectivity](fork-docs/connectivity-and-services.md).
 - The container is the isolation boundary for agents. Agents can read and write
   whatever you mount into `/workspace` and whatever credentials you place in
   `/home/hanabicode`.
@@ -212,20 +212,17 @@ docker build \
 ```
 
 The Docker workflow (`docker.yml`) builds the image on pull requests and on
-`main` as a non-publishing check. Manual publishes require an explicit
-`hanabicode_version`:
+`main` or `hanabicode` as a non-publishing check. The tag-driven HanabiCode
+release workflow owns publication:
 
 ```bash
-gh workflow run docker.yml \
-  --ref main \
-  -f hanabicode_version=0.4.0 \
-  -f publish=true
+git push origin hanabicode
+git push origin hanabicode-v0.1.0
 ```
 
-The workflow builds from the checked-out source tree and publishes to this
-repository's GHCR namespace (`ghcr.io/dey11/hanabicode`). Prerelease versions
-publish only the exact version tag; `publish_latest=true` adds `latest` for
-non-prerelease versions.
+The release workflow builds from the tagged source and publishes to
+`ghcr.io/dey11/hanabicode`. Prereleases publish only the exact version tag;
+stable releases also move `latest`.
 
 The published image is multi-arch for `linux/amd64` and `linux/arm64`.
 

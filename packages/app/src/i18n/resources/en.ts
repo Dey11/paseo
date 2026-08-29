@@ -1723,8 +1723,8 @@ export const en = {
       enableTitle: "Enable relay?",
       enableDescription:
         "Relay lets this device connect from anywhere. Pairing traffic is end-to-end encrypted.",
-      relayDocs: "How relay works",
-      relayDocsAccessibility: "Read how HanabiCode relay works",
+      relayDocs: "Relay alternatives",
+      relayDocsAccessibility: "Read why HanabiCode uses direct connections",
       enableRelay: "Enable relay",
       enablingRelay: "Enabling...",
       notNow: "Not now",

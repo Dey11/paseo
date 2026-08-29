@@ -1,6 +1,6 @@
 # Contributing to HanabiCode
 
-HanabiCode is a personal downstream of [Paseo](https://github.com/getpaseo/paseo). Bug reports and focused pull requests are welcome in [HanabiCode issues](https://github.com/Dey11/hanabicode/issues). Discuss larger product or architecture changes in [HanabiCode Discussions](https://github.com/Dey11/hanabicode/discussions) before implementing them.
+HanabiCode is a personal downstream of [Paseo](https://github.com/getpaseo/paseo). Bug reports and focused pull requests are welcome in [HanabiCode issues](https://github.com/Dey11/paseo/issues). Discuss larger product or architecture changes in [HanabiCode Discussions](https://github.com/Dey11/paseo/discussions) before implementing them.
 
 ## Before opening a pull request
 
@@ -15,7 +15,7 @@ The [QA guide](docs/qa.md) defines the evidence expected for each surface. If an
 
 ## Licensing
 
-Contributions are accepted under the repository's [GNU AGPL v3-or-later license](LICENSE). Do not submit code that HanabiCode cannot legally redistribute. Keep upstream copyright and license notices intact.
+Contributions are accepted under the repository's [Apache License 2.0](LICENSE). Do not submit code that HanabiCode cannot legally redistribute. Keep upstream copyright and license notices intact.
 
 ## Upstream changes
 

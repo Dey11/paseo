@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HanabiCode fork and release plan</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0d10;
+        --panel: #13171c;
+        --panel-2: #181e25;
+        --border: #2a333d;
+        --text: #f5f7fa;
+        --muted: #aab4c0;
+        --green: #7ee2a8;
+        --blue: #8fc7ff;
+        --amber: #f2cb7d;
+        --red: #ff9a9a;
+        --code: #0e1216;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.58 ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 44px 0 80px;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.18;
+        letter-spacing: -0.02em;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(34px, 6vw, 58px);
+      }
+      h2 {
+        margin: 0 0 16px;
+        font-size: 26px;
+      }
+      h3 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+      p {
+        margin: 0 0 14px;
+      }
+      a {
+        color: var(--blue);
+      }
+      code,
+      pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      code {
+        color: #d9e7f5;
+      }
+      pre {
+        margin: 14px 0 0;
+        padding: 16px;
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--code);
+        color: #dce6ef;
+        font-size: 13px;
+      }
+      ul,
+      ol {
+        margin: 10px 0 0;
+        padding-left: 22px;
+      }
+      li + li {
+        margin-top: 7px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+      }
+      .eyebrow {
+        color: var(--green);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+      .lede {
+        max-width: 780px;
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+      .section {
+        margin-top: 54px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--panel);
+        padding: 22px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .status {
+        margin-top: 28px;
+        border-left: 4px solid var(--green);
+      }
+      .warning {
+        border-left: 4px solid var(--amber);
+      }
+      .danger {
+        border-left: 4px solid var(--red);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .pill {
+        display: inline-block;
+        margin: 2px 4px 2px 0;
+        padding: 3px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel-2);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .phase {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 18px;
+        padding: 22px 0;
+        border-top: 1px solid var(--border);
+      }
+      .phase:first-of-type {
+        border-top: 0;
+      }
+      .phase-number {
+        color: var(--green);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 9px;
+        align-items: stretch;
+      }
+      .flow div {
+        padding: 14px 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel-2);
+        text-align: center;
+      }
+      .flow strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .decision {
+        color: var(--green);
+      }
+      .optional {
+        color: var(--amber);
+      }
+      .checklist {
+        list-style: none;
+        padding-left: 0;
+      }
+      .checklist li {
+        position: relative;
+        padding-left: 24px;
+      }
+      .checklist li::before {
+        content: "□";
+        position: absolute;
+        left: 0;
+        color: var(--green);
+      }
+      .footer {
+        margin-top: 56px;
+        padding-top: 22px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+      }
+      @media (max-width: 820px) {
+        .grid,
+        .grid-3,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        .phase {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Living implementation plan</p>
+      <h1>HanabiCode fork and release plan</h1>
+      <p class="lede">
+        Keep <code>Dey11/paseo</code> easy to update from <code>getpaseo/paseo</code>, while
+        shipping a separate HanabiCode desktop app, Android app, daemon image, state directory,
+        updater, and release history.
+      </p>
+
+      <section class="card status">
+        <h2>Current state</h2>
+        <p>
+          The local <code>hanabicode</code> branch now contains upstream commit
+          <code>0dad1d7a6</code> and has no missing commits from <code>upstream/main</code>. It is
+          10 fork commits ahead before the current implementation work. The merge commit is
+          <code>4f2883a84</code>.
+        </p>
+        <p>
+          The fork identity, independent <code>0.1.x</code> version line, tag-driven release
+          workflow, Android signing contract, daemon image publication, and no-relay connectivity
+          boundary are implemented locally. Verification and final diff review are in progress.
+          Nothing has been pushed, published, or deployed.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>Decisions already made</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Product and repository</h3>
+            <table>
+              <tr>
+                <th>Concern</th>
+                <th>Decision</th>
+              </tr>
+              <tr>
+                <td>Product name</td>
+                <td>HanabiCode</td>
+              </tr>
+              <tr>
+                <td>GitHub repository</td>
+                <td><code>Dey11/paseo</code></td>
+              </tr>
+              <tr>
+                <td>Release branch</td>
+                <td><code>hanabicode</code></td>
+              </tr>
+              <tr>
+                <td>Upstream mirror</td>
+                <td><code>main</code></td>
+              </tr>
+              <tr>
+                <td>Release versions</td>
+                <td>Independent <code>0.1.x</code> line</td>
+              </tr>
+              <tr>
+                <td>Release tags</td>
+                <td><code>hanabicode-v0.1.0</code></td>
+              </tr>
+            </table>
+          </article>
+          <article class="card">
+            <h3>Installed identity</h3>
+            <table>
+              <tr>
+                <th>Concern</th>
+                <th>Decision</th>
+              </tr>
+              <tr>
+                <td>Bundle and package ID</td>
+                <td><code>com.dey.hanabicode</code></td>
+              </tr>
+              <tr>
+                <td>Development package ID</td>
+                <td><code>com.dey.hanabicode.debug</code></td>
+              </tr>
+              <tr>
+                <td>URL scheme</td>
+                <td><code>hanabicode</code></td>
+              </tr>
+              <tr>
+                <td>CLI</td>
+                <td><code>hanabicode</code></td>
+              </tr>
+              <tr>
+                <td>State directory</td>
+                <td><code>~/.hanabicode</code></td>
+              </tr>
+              <tr>
+                <td>Default daemon port</td>
+                <td><code>6769</code></td>
+              </tr>
+            </table>
+          </article>
+        </div>
+        <div class="card warning" style="margin-top: 16px">
+          <h3>Compatibility names stay</h3>
+          <p>
+            Keep the internal <code>@getpaseo/*</code> workspace names,
+            <code>PASEO_*</code> environment variables, wire identifiers, and
+            <code>.paseo</code> project metadata. Renaming those creates merge work without changing
+            the installed product identity.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Target topology</h2>
+        <div class="flow" aria-label="HanabiCode runtime topology">
+          <div><strong>macOS</strong><span class="muted">HanabiCode desktop</span></div>
+          <div><strong>Android</strong><span class="muted">signed APK</span></div>
+          <div>
+            <strong>Cloudflare Tunnel</strong><span class="muted">later connectivity phase</span>
+          </div>
+          <div><strong>Daemon</strong><span class="muted">VPS or built-in Mac daemon</span></div>
+          <div><strong>Agents</strong><span class="muted">Codex, Claude, OpenCode, Pi</span></div>
+        </div>
+        <div class="grid-3" style="margin-top: 16px">
+          <article class="card">
+            <h3>Desktop</h3>
+            <p>
+              The macOS app includes the matching daemon and CLI. It can run its built-in local
+              daemon or connect to the VPS daemon as a client.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Android</h3>
+            <p>
+              The APK connects to a paired HanabiCode daemon. It does not contain a daemon and does
+              not require EAS for the first release path.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Remote daemon</h3>
+            <p>
+              Publish a multi-architecture container as <code>ghcr.io/dey11/hanabicode</code>. This
+              is the supported standalone daemon package.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Daemon and remote connectivity answer</h2>
+        <div class="grid">
+          <article class="card">
+            <h3><span class="decision">Yes</span>, release the daemon from the fork</h3>
+            <p>
+              App and daemon versions drift in normal use, so the fork must own both. The desktop
+              build already bundles the daemon. The release pipeline should also publish the daemon
+              container from the same tag for the VPS.
+            </p>
+            <p>
+              Do not publish the upstream <code>@getpaseo/*</code> npm packages. That namespace is
+              not the fork's release channel, and the desktop and container do not need public npm
+              publication.
+            </p>
+          </article>
+          <article class="card">
+            <h3>
+              <span class="optional">Later phase</span>, use Cloudflare Tunnel without a relay
+            </h3>
+            <p>
+              Do not deploy or fork the Paseo relay. Build and test macOS, Android, and the daemon
+              with local or Tailscale connectivity first. Once those artifacts work, connect the VPS
+              daemon through a named Cloudflare Tunnel.
+            </p>
+            <p>
+              The preferred first experiment is a private hostname or private route through
+              Cloudflare One. The Mac and Android phone enroll in the same Zero Trust organization
+              through the Cloudflare One client. This keeps the daemon off a public hostname and
+              does not require a HanabiCode protocol change.
+            </p>
+            <p>
+              A public WSS hostname is simpler for the app but weaker as a trust boundary.
+              Cloudflare terminates TLS, so it can observe daemon traffic. Use that mode only if
+              this tradeoff is accepted. Password authentication controls access but does not add
+              application-layer encryption.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>Implementation phases</h2>
+
+        <div class="phase">
+          <div class="phase-number">Phase 0</div>
+          <div>
+            <h3>Stabilize the merged branch</h3>
+            <ul>
+              <li>
+                Audit every conflict-sensitive fork feature after the
+                <code>-X theirs</code> upstream merge, especially port forwarding, product identity,
+                desktop startup, daemon state, and updater behavior.
+              </li>
+              <li>
+                Keep upstream's newer implementation when a fork change only renamed an internal
+                symbol.
+              </li>
+              <li>
+                Retain fork changes only at product boundaries and in intentional opinionated
+                features.
+              </li>
+              <li>
+                Regenerate <code>package-lock.json</code> from the merged manifests and confirm
+                <code>npm ci</code> succeeds from a clean checkout.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 1</div>
+          <div>
+            <h3>Normalize the fork boundary</h3>
+            <ul>
+              <li>
+                Replace fork release, updater, source, issue, and documentation URLs with
+                <code>https://github.com/Dey11/paseo</code>.
+              </li>
+              <li>
+                Change fork-doc branch links from <code>main</code> or <code>personal</code> to
+                <code>hanabicode</code>.
+              </li>
+              <li>
+                Keep <code>upstream</code> links only where the text is genuinely about official
+                Paseo.
+              </li>
+              <li>
+                Resolve the current Apache versus AGPL documentation mismatch before distribution.
+                Preserve upstream copyright and license notices either way.
+              </li>
+              <li>
+                Replace upstream artwork before sharing builds publicly, or get explicit permission
+                to use it.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 2</div>
+          <div>
+            <h3>Give HanabiCode its own version and tag rules</h3>
+            <ul>
+              <li>
+                Set the first release line to <code>0.1.0</code> and sync every workspace manifest.
+              </li>
+              <li>
+                Add a fork release script that uses the existing version calculator but creates tags
+                with the <code>hanabicode-v</code> prefix.
+              </li>
+              <li>
+                Support stable tags such as <code>hanabicode-v0.1.0</code> and beta tags such as
+                <code>hanabicode-v0.1.1-beta.1</code>.
+              </li>
+              <li>
+                Disable or remove fork-facing scripts that publish <code>@getpaseo/*</code> to npm.
+                Keep dry pack checks as verification.
+              </li>
+              <li>
+                Make the release validator require that the tagged commit belongs to
+                <code>origin/hanabicode</code>.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 3</div>
+          <div>
+            <h3>Build one draft-first GitHub release</h3>
+            <p>
+              The <code>hanabicode-release.yml</code> workflow should run on a
+              <code>hanabicode-v*</code> tag push. Manual dispatch remains a retry tool, not the
+              primary release trigger.
+            </p>
+            <ol>
+              <li>Validate tag syntax, source branch ancestry, and matching package versions.</li>
+              <li>Create a draft GitHub release in <code>Dey11/paseo</code>.</li>
+              <li>
+                Run formatting checks, lint, typecheck, focused release tests, and package dry runs.
+              </li>
+              <li>Build macOS ARM64 and x64 DMGs and ZIPs with ad-hoc signing.</li>
+              <li>Build one universal, release-signed Android APK with Gradle.</li>
+              <li>
+                Build and publish the daemon image to
+                <code>ghcr.io/dey11/hanabicode:0.1.0</code> and update
+                <code>hanabicode-latest</code> only for stable releases.
+              </li>
+              <li>
+                Merge updater manifests, add checksums, include <code>LICENSE</code> and
+                <code>NOTICE</code>, then publish the draft only after required jobs pass.
+              </li>
+            </ol>
+            <p class="muted" style="margin-top: 12px">
+              Windows, Linux desktop, iOS, Play Store, App Store, website deployment, and npm
+              publication stay outside the first release.
+            </p>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 4</div>
+          <div>
+            <h3>Set up Android signing once</h3>
+            <ul>
+              <li>Create a permanent PKCS#12 signing key on a trusted machine.</li>
+              <li>
+                Keep two offline backups. Losing this key prevents an APK from updating an installed
+                copy.
+              </li>
+              <li>Create a protected GitHub environment named <code>release</code>.</li>
+              <li>
+                Store <code>ANDROID_KEYSTORE_BASE64</code>, <code>ANDROID_KEYSTORE_PASSWORD</code>,
+                <code>ANDROID_KEY_ALIAS</code>, <code>ANDROID_KEY_PASSWORD</code>, and
+                <code>ANDROID_CERT_SHA256</code> as environment secrets.
+              </li>
+              <li>
+                Have Actions verify the APK signature and expected SHA-256 certificate before
+                upload.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 5</div>
+          <div>
+            <h3>Keep macOS installable now, notarize later</h3>
+            <ul>
+              <li>Build ad-hoc-signed artifacts with no Apple secrets.</li>
+              <li>State the Gatekeeper override in release notes and installation docs.</li>
+              <li>
+                Verify the app's bundle ID, signature structure, daemon bundle, updater manifest,
+                CLI, state directory, and side-by-side installation with official Paseo.
+              </li>
+              <li>
+                When an Apple Developer ID is available, add certificate and notarization secrets,
+                turn on hardened runtime, and make Gatekeeper assessment a release gate.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 6</div>
+          <div>
+            <h3>Prove Cloudflare Tunnel connectivity after releases work</h3>
+            <ul>
+              <li>
+                Keep Tailscale direct access as the known-good baseline and recovery path during
+                this phase.
+              </li>
+              <li>
+                Publish and run the fork daemon container on the VPS with
+                <code>PASEO_HOME=/home/dev/.hanabicode</code>, a strong <code>PASEO_PASSWORD</code>,
+                and a loopback or private listener.
+              </li>
+              <li>
+                Install <code>cloudflared</code> on the VPS and create a named, outbound-only
+                tunnel. Start with a Cloudflare private hostname or network route, then enroll macOS
+                and Android through the Cloudflare One client.
+              </li>
+              <li>
+                Add the Cloudflare-reachable daemon as an ordinary direct HanabiCode host. Verify
+                authentication, reconnect, terminal binary frames, agent streams, file transfers,
+                and the Ports feature over long-lived WebSockets.
+              </li>
+              <li>
+                Do not add Cloudflare Access service-token secrets to the app in the first pass.
+                That needs an explicit client credential model, header support, rotation, and a
+                recovery path.
+              </li>
+              <li>
+                If a public hostname is later selected, route it to the loopback daemon, configure
+                <code>PASEO_HOSTNAMES</code>, keep password authentication mandatory, and record
+                that Cloudflare can inspect traffic after TLS termination.
+              </li>
+              <li>
+                If Cloudflare must remain unable to read application data, add a separate protocol
+                project that generalizes the existing relay E2EE wrapper for direct WebSocket
+                transports. Capability-gate it and preserve version-skew compatibility. Do not
+                invent new cryptography.
+              </li>
+              <li>
+                Rewrite the fork connectivity docs after the experiment passes. Retire the current
+                fork-owned-relay decision and keep the old relay plan only as an archived
+                alternative.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 7</div>
+          <div>
+            <h3>Cut the first beta, then stable</h3>
+            <ol>
+              <li>
+                Cut <code>hanabicode-v0.1.0-beta.1</code> from a reviewed
+                <code>hanabicode</code> commit.
+              </li>
+              <li>
+                Install both macOS architectures where hardware is available, install the APK on the
+                target Android phone, and run the daemon image on the VPS.
+              </li>
+              <li>
+                Test clean install, pairing, reconnect, app restart, terminal traffic, agent
+                control, Files, Ports, and update continuity.
+              </li>
+              <li>
+                Fix failures on the branch and cut a new beta tag. Never move an existing tag.
+              </li>
+              <li>Cut <code>hanabicode-v0.1.0</code> only after upgrade tests pass.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 8</div>
+          <div>
+            <h3>Run a repeatable upstream sync</h3>
+            <pre>
+git fetch origin upstream --prune --tags
+git switch main
+git merge --ff-only upstream/main
+# Push only after explicit approval.
+git push origin main
+
+git switch hanabicode
+git merge --no-ff main
+npm ci
+npm run build:client
+npm run build:server
+npm run typecheck
+npm run lint
+npm run format:check
+# Run focused fork tests, inspect the diff, then push with approval.</pre
+            >
+            <p style="margin-top: 14px">
+              Merge upstream frequently while the patch stack is manageable. Do not rebrand internal
+              package names. Keep each HanabiCode opinion in a focused commit so a future conflict
+              points to one real product decision.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Verification matrix</h2>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Required proof</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Git and source</td>
+                <td>
+                  Tag resolves to the reviewed <code>hanabicode</code> commit; source links point to
+                  <code>Dey11/paseo</code>.
+                </td>
+              </tr>
+              <tr>
+                <td>Workflow</td>
+                <td>
+                  YAML parses; release workflow tests pass; no official deployment workflow or npm
+                  publisher can run from a HanabiCode tag.
+                </td>
+              </tr>
+              <tr>
+                <td>macOS</td>
+                <td>
+                  ARM64 and x64 artifacts, correct bundle ID, valid ad-hoc signature, matching
+                  updater feed, clean launch after documented Gatekeeper override.
+                </td>
+              </tr>
+              <tr>
+                <td>Android</td>
+                <td>
+                  <code>com.dey.hanabicode</code>, expected version code, expected signing
+                  fingerprint, clean install, and signed upgrade over the previous APK.
+                </td>
+              </tr>
+              <tr>
+                <td>Daemon</td>
+                <td>
+                  Image reports the release version, persists under HanabiCode state, starts without
+                  official service credentials, and accepts the paired clients.
+                </td>
+              </tr>
+              <tr>
+                <td>Cloudflare Tunnel</td>
+                <td>
+                  Private-route access from macOS and Android, direct daemon authentication, text
+                  and binary WebSocket frames, reconnect, app restart, one forwarded HTTP service,
+                  WebSocket or HMR traffic, and Tailscale recovery. A public-hostname test must also
+                  record the TLS termination and data-observability tradeoff.
+                </td>
+              </tr>
+              <tr>
+                <td>Compatibility</td>
+                <td>
+                  Previous HanabiCode client works with the new daemon and the new client handles
+                  the previous daemon for supported features.
+                </td>
+              </tr>
+              <tr>
+                <td>Quality</td>
+                <td>
+                  Formatting, lint, typecheck, focused tests, package dry runs, artifact checksums,
+                  license files, and final diff inspection.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Release gates</h2>
+        <div class="grid">
+          <article class="card danger">
+            <h3>Blocks the first shared release</h3>
+            <ul class="checklist">
+              <li>All <code>Dey11/paseo</code> release and updater references are removed.</li>
+              <li>Independent version and <code>hanabicode-v*</code> tag handling work.</li>
+              <li>Android signing key is backed up and configured.</li>
+              <li>Artwork and licensing are settled.</li>
+              <li>No workflow can publish to official Paseo targets.</li>
+              <li>macOS, Android, and daemon upgrade paths pass.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Can wait</h3>
+            <ul>
+              <li>Apple notarization</li>
+              <li>Play Store and App Store distribution</li>
+              <li>Windows and Linux desktop release assets</li>
+              <li>Expo/EAS and push notifications</li>
+              <li>Public website deployment</li>
+              <li>Cloudflare Tunnel production rollout</li>
+              <li>Application-layer E2EE for direct Cloudflare WebSockets</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>What the finished setup looks like</h2>
+        <p>
+          <code>main</code> mirrors upstream. <code>hanabicode</code> carries a small, explicit
+          product patch stack plus opinionated features such as port forwarding. A
+          <code>hanabicode-v*</code> tag builds the exact tagged commit, leaves a draft while checks
+          run, and publishes macOS, Android, checksums, source notices, and a fork daemon image.
+          Every updater and source link stays inside <code>Dey11/paseo</code>.
+        </p>
+        <p>
+          The macOS app and Android app pair with the same fork daemon. The desktop can also run its
+          bundled daemon locally. Remote access is added later through a Cloudflare private route,
+          with the Cloudflare One client on macOS and Android and Tailscale as recovery. No Paseo
+          relay is deployed. Upstream code remains useful without owning HanabiCode's identity,
+          releases, state, signing keys, or infrastructure.
+        </p>
+      </section>
+
+      <p class="footer">
+        Status: implemented locally and under verification. Remote branch protection, Android
+        secrets, pushes, release tags, artifact publication, and Cloudflare resources remain
+        external activation steps.
+      </p>
+    </main>
+  </body>
+</html>

@@ -247,7 +247,7 @@ buildNpmPackage {
 
   meta = {
     description = "HanabiCode desktop app (Electron wrapper)";
-    homepage = "https://github.com/Dey11/hanabicode";
+    homepage = "https://github.com/Dey11/paseo";
     license = lib.licenses.agpl3Plus;
     mainProgram = "hanabicode-desktop";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;

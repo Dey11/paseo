@@ -348,6 +348,7 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
     snapshot,
   } = usePortWatch(watchInput);
   const [manualPort, setManualPort] = useState("");
+  const [manualPortResetKey, setManualPortResetKey] = useState(0);
   const [manualProtocol, setManualProtocol] = useState<WorkspacePortProtocol>("http");
   const [pendingAction, setPendingAction] = useState<PendingPortAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -382,7 +383,10 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
           requestedLocalPort: remotePort,
         });
         setSnapshot(next);
-        setManualPort("");
+        if (source === "manual") {
+          setManualPort("");
+          setManualPortResetKey((current) => current + 1);
+        }
       } catch (error) {
         setActionError(messageFromError(error, t("workspace.ports.errors.forward")));
       } finally {
@@ -468,7 +472,8 @@ export function PortsPane({ active, serverId, workspaceId }: PortsPaneProps) {
         <View style={styles.manualRow}>
           <FormTextInput
             size="sm"
-            value={manualPort}
+            initialValue=""
+            resetKey={manualPortResetKey}
             onChangeText={setManualPort}
             placeholder={t("workspace.ports.manualPlaceholder")}
             keyboardType="number-pad"
@@ -567,7 +572,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   fieldLabel: {
     color: theme.colors.foreground,
-    fontSize: theme.fontSize.xs,
+    fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.medium,
   },
   empty: { color: theme.colors.foregroundMuted, fontSize: theme.fontSize.sm, paddingVertical: 24 },
@@ -587,10 +592,10 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: theme.fontWeight.medium,
     fontFamily: theme.fontFamily.mono,
   },
-  meta: { color: theme.colors.foregroundMuted, fontSize: theme.fontSize.xs },
-  endpoint: { color: theme.colors.foreground, fontSize: theme.fontSize.xs },
-  warningText: { color: theme.colors.palette.amber[500], fontSize: theme.fontSize.xs },
-  errorText: { color: theme.colors.statusDanger, fontSize: theme.fontSize.xs },
+  meta: { color: theme.colors.foregroundMuted, fontSize: theme.fontSize.sm },
+  endpoint: { color: theme.colors.foreground, fontSize: theme.fontSize.sm },
+  warningText: { color: theme.colors.palette.amber[500], fontSize: theme.fontSize.sm },
+  errorText: { color: theme.colors.statusDanger, fontSize: theme.fontSize.sm },
   actions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: theme.spacing[1] },
   messageContainer: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   messageText: {

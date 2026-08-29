@@ -293,7 +293,7 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
             <Text style={styles.subtitle}>{t("onboarding.subtitle")}</Text>
             {isNative ? (
               <Pressable style={styles.setupLink} onPress={handleOpenHanabiCodeSource}>
-                <Text style={styles.setupLinkText}>github.com/Dey11/hanabicode</Text>
+                <Text style={styles.setupLinkText}>github.com/Dey11/paseo</Text>
                 <ExternalLink size={14} color={theme.colors.accent} />
               </Pressable>
             ) : null}

@@ -21,7 +21,8 @@ import {
   type EditingTextInputHandle,
 } from "@/components/ui/text-input";
 
-const RELAY_DOCS_URL = "https://paseo.sh/docs/security";
+const RELAY_DOCS_URL =
+  "https://github.com/Dey11/paseo/blob/hanabicode/docs/fork-docs/relay-options.md";
 const FLEX_ONE_STYLE = { flex: 1 } as const;
 const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
 const ThemedShieldCheck = withUnistyles(ShieldCheck);

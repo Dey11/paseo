@@ -1,22 +1,25 @@
 name: HanabiCode Release
 
 on:
+  push:
+    tags:
+      - "hanabicode-v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing v* tag to release (for example v0.5.0)"
+        description: "Existing hanabicode-v* tag to retry"
         required: true
         type: string
 
 concurrency:
-  group: hanabicode-release-${{ inputs.tag }}
+  group: hanabicode-release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 env:
-  RELEASE_TAG: ${{ inputs.tag }}
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   DESKTOP_PACKAGE_PATH: packages/desktop
 
 jobs:
@@ -30,20 +33,23 @@ jobs:
       channel: ${{ steps.release.outputs.channel }}
       prerelease: ${{ steps.release.outputs.prerelease }}
       commit: ${{ steps.release.outputs.commit }}
+      image: ${{ steps.release.outputs.image }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - id: release
         name: Validate tag and package versions
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
         shell: bash
         run: |
           set -euo pipefail
           tag="$RELEASE_TAG"
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[1-9][0-9]*)?$ ]]; then
-            echo "::error::Release tag must match vX.Y.Z or vX.Y.Z-beta.N"
+          if [[ ! "$tag" =~ ^hanabicode-v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[1-9][0-9]*)?$ ]]; then
+            echo "::error::Release tag must match hanabicode-vX.Y.Z or hanabicode-vX.Y.Z-beta.N"
             exit 1
           fi
 
@@ -53,13 +59,14 @@ jobs:
             echo "::error::Checkout does not match $tag"
             exit 1
           fi
-          git fetch --no-tags origin main
-          if ! git merge-base --is-ancestor "$commit" origin/main; then
-            echo "::error::$tag does not point to a commit on main"
+
+          git fetch --no-tags origin hanabicode
+          if ! git merge-base --is-ancestor "$commit" origin/hanabicode; then
+            echo "::error::$tag does not point to a commit on the hanabicode branch"
             exit 1
           fi
 
-          version="${tag#v}"
+          version="${tag#hanabicode-v}"
           node - "$version" <<'NODE'
           const fs = require("node:fs");
           const expected = process.argv[2];
@@ -67,6 +74,7 @@ jobs:
             "package.json",
             "packages/app/package.json",
             "packages/desktop/package.json",
+            "packages/server/package.json",
           ];
           for (const manifest of manifests) {
             const actual = JSON.parse(fs.readFileSync(manifest, "utf8")).version;
@@ -82,17 +90,21 @@ jobs:
             prerelease=true
             channel=beta
           fi
+          owner="$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
           {
             echo "version=$version"
             echo "channel=$channel"
             echo "prerelease=$prerelease"
             echo "commit=$commit"
+            echo "image=ghcr.io/${owner}/hanabicode"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create or validate draft
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          RELEASE_IMAGE: ${{ steps.release.outputs.image }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
           RELEASE_PRERELEASE: ${{ steps.release.outputs.prerelease }}
         shell: bash
         run: |
@@ -113,7 +125,9 @@ jobs:
 
           License: https://github.com/${GITHUB_REPOSITORY}/blob/${RELEASE_COMMIT}/LICENSE
 
-          macOS artifacts are ad-hoc signed and are not notarized. Windows artifacts are unsigned.
+          Daemon image: ${RELEASE_IMAGE}:${RELEASE_VERSION}
+
+          macOS artifacts are ad-hoc signed and are not notarized.
           EOF
 
           args=(
@@ -121,7 +135,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY"
             --verify-tag
             --draft
-            --title "HanabiCode $RELEASE_TAG"
+            --title "HanabiCode ${RELEASE_VERSION}"
             --notes-file "$notes_file"
           )
           if [[ "$RELEASE_PRERELEASE" == "true" ]]; then
@@ -137,7 +151,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-node@v4
         with:
@@ -169,7 +183,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-node@v4
         with:
@@ -232,77 +246,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  windows:
-    name: Windows x64 and ARM64
-    needs: [prepare, quality]
-    env:
-      EXPO_PUBLIC_HANABICODE_SOURCE_COMMIT: ${{ needs.prepare.outputs.commit }}
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ inputs.tag }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install dependencies
-        run: node scripts/npm-retry.mjs ci
-
-      - name: Build unsigned desktop app
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          EP_GH_IGNORE_TIME: "true"
-          PASEO_DESKTOP_SMOKE: "1"
-          PASEO_DESKTOP_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/desktop-smoke
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run build:desktop -- \
-            --publish never \
-            --win \
-            --x64 \
-            --arm64 \
-            -c.publish.releaseType=${{ needs.prepare.outputs.prerelease == 'true' && 'prerelease' || 'release' }} \
-            -c.publish.channel=${{ needs.prepare.outputs.channel }}
-
-      - name: Stage release files
-        env:
-          RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          source_dir="$DESKTOP_PACKAGE_PATH/release"
-          output_dir="$RUNNER_TEMP/hanabicode-windows"
-          mkdir -p "$output_dir"
-          find "$source_dir" -maxdepth 1 -type f \
-            \( -name '*.exe' -o -name '*.zip' -o -name '*.blockmap' -o -name "$RELEASE_CHANNEL.yml" \) \
-            -exec cp {} "$output_dir/" \;
-          [[ "$(find "$output_dir" -maxdepth 1 -name '*.exe' | wc -l | tr -d ' ')" == "2" ]]
-          [[ "$(find "$output_dir" -maxdepth 1 -name '*.zip' | wc -l | tr -d ' ')" == "2" ]]
-          [[ -f "$output_dir/$RELEASE_CHANNEL.yml" ]]
-
-      - name: Upload Windows build
-        uses: actions/upload-artifact@v4
-        with:
-          name: hanabicode-windows
-          path: ${{ runner.temp }}/hanabicode-windows
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload smoke diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hanabicode-windows-smoke
-          path: ${{ runner.temp }}/desktop-smoke
-          if-no-files-found: ignore
-          retention-days: 7
-
   android:
     name: Android signed APK
     needs: [prepare, quality]
@@ -314,7 +257,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-node@v4
         with:
@@ -408,9 +351,65 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  daemon-image:
+    name: Publish daemon image
+    needs: [prepare, quality, macos, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
+
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: tags
+        name: Resolve image tags
+        env:
+          RELEASE_IMAGE: ${{ needs.prepare.outputs.image }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "value<<EOF"
+            echo "${RELEASE_IMAGE}:${RELEASE_VERSION}"
+            if [[ "$RELEASE_PRERELEASE" != "true" ]]; then
+              echo "${RELEASE_IMAGE}:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/base/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            HANABICODE_VERSION=${{ needs.prepare.outputs.version }}
+          tags: ${{ steps.tags.outputs.value }}
+          push: true
+          provenance: true
+          sbom: true
+          cache-from: type=gha,scope=hanabicode-release
+          cache-to: type=gha,scope=hanabicode-release,mode=max
+
   publish:
     name: Validate and publish release
-    needs: [prepare, quality, macos, windows, android]
+    needs: [prepare, quality, macos, android, daemon-image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -418,7 +417,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-node@v4
         with:
@@ -441,11 +440,6 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: hanabicode-windows
-          path: release-input/windows
-
-      - uses: actions/download-artifact@v4
-        with:
           name: hanabicode-android
           path: release-input/android
 
@@ -460,8 +454,6 @@ jobs:
           [[ "$(count release-input/macos-arm64 '*.zip')" == "1" ]]
           [[ "$(count release-input/macos-x64 '*.dmg')" == "1" ]]
           [[ "$(count release-input/macos-x64 '*.zip')" == "1" ]]
-          [[ "$(count release-input/windows '*.exe')" == "2" ]]
-          [[ "$(count release-input/windows '*.zip')" == "2" ]]
           [[ "$(count release-input/android '*.apk')" == "1" ]]
 
           assets="$RUNNER_TEMP/hanabicode-release-assets"
@@ -481,7 +473,6 @@ jobs:
           }
           copy_unique release-input/macos-arm64
           copy_unique release-input/macos-x64
-          copy_unique release-input/windows
           copy_unique release-input/android
           cp LICENSE NOTICE "$assets/"
 
@@ -489,17 +480,15 @@ jobs:
             "release-input/macos-arm64/$RELEASE_CHANNEL-mac.yml" \
             "release-input/macos-x64/$RELEASE_CHANNEL-mac.yml" \
             "$assets/$RELEASE_CHANNEL-mac.yml"
-          cp "release-input/windows/$RELEASE_CHANNEL.yml" "$assets/$RELEASE_CHANNEL.yml"
           timestamp="$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")"
           node scripts/stamp-rollout.mjs \
             --release-date "$timestamp" \
             --rollout-hours 0 \
-            "$assets/$RELEASE_CHANNEL-mac.yml" \
-            "$assets/$RELEASE_CHANNEL.yml"
+            "$assets/$RELEASE_CHANNEL-mac.yml"
 
           (
             cd "$assets"
-            sha256sum -- * > "HanabiCode-$RELEASE_TAG-SHA256SUMS.txt"
+            sha256sum -- * > "HanabiCode-${RELEASE_TAG}-SHA256SUMS.txt"
           )
           echo "RELEASE_ASSETS=$assets" >> "$GITHUB_ENV"
 
@@ -507,6 +496,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+          RELEASE_IMAGE: ${{ needs.prepare.outputs.image }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
           RELEASE_PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
         shell: bash
         run: |
@@ -535,15 +526,17 @@ jobs:
 
           License: https://github.com/${GITHUB_REPOSITORY}/blob/${RELEASE_COMMIT}/LICENSE
 
+          Daemon image: ${RELEASE_IMAGE}:${RELEASE_VERSION}
+
           Checksums are in HanabiCode-${RELEASE_TAG}-SHA256SUMS.txt.
 
-          macOS artifacts are ad-hoc signed and are not notarized. On first launch, macOS requires a manual Gatekeeper override. Windows artifacts are unsigned and may show an unknown-publisher warning.
+          macOS artifacts are ad-hoc signed and are not notarized. On first launch, macOS requires a manual Gatekeeper override.
           EOF
 
           edit_args=(
             release edit "$RELEASE_TAG"
             --repo "$GITHUB_REPOSITORY"
-            --title "HanabiCode $RELEASE_TAG"
+            --title "HanabiCode ${RELEASE_VERSION}"
             --notes-file "$notes_file"
             --draft=false
           )

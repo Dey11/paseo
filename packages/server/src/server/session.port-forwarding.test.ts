@@ -13,6 +13,7 @@ import {
 } from "@getpaseo/protocol/binary-frames/index";
 import type { SessionOutboundMessage, WorkspaceMutation } from "@getpaseo/protocol/messages";
 import { Session, type SessionOptions } from "./session.js";
+import { OWNER_PERMISSIONS } from "./authorization/index.js";
 import {
   asAgentManager,
   asAgentStorage,
@@ -143,7 +144,7 @@ function createSessionForPortForwardingTest(options?: {
   tempHomes.push(tempHome);
   const session = new Session({
     clientId: "test-client",
-    scopes: ["*"],
+    permissions: OWNER_PERMISSIONS,
     onMessage: (message) => messages.push(message),
     onBinaryMessage: (frame) => binaryFrames.push(frame),
     logger: asSessionLogger(logger),

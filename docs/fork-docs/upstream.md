@@ -11,7 +11,7 @@ git remote add upstream https://github.com/getpaseo/paseo.git
 git fetch upstream
 ```
 
-Keep `main` as an unmodified mirror when practical. Carry personal product changes on a long-lived `personal` branch and use short feature branches for coherent work.
+Keep `main` as an unmodified mirror when practical. Carry HanabiCode product changes on the long-lived `hanabicode` branch and use short feature branches for coherent work.
 
 Update without rewriting shared history:
 
@@ -21,12 +21,12 @@ git switch main
 git merge --ff-only upstream/main
 git push origin main
 
-git switch personal
+git switch hanabicode
 git merge main
-git push origin personal
+git push origin hanabicode
 ```
 
-Rebase the personal patch stack only when the branch is private and the history rewrite is intentional. Use `--force-with-lease`, never an unqualified force push.
+Rebase the HanabiCode patch stack only when the branch is private and the history rewrite is intentional. Use `--force-with-lease`, never an unqualified force push.
 
 ## Conflict policy
 
@@ -58,6 +58,6 @@ Abandoning upstream merges does not remove version skew inside the personal depl
 
 ## CI
 
-Use a draft pull request from `personal` to `main` or a manual workflow to run path-routed CI. A push to `personal` alone does not satisfy every upstream workflow trigger.
+Use pull requests targeting `hanabicode` for ordinary fork work. Fork CI includes `hanabicode` in its branch filters; `main` stays available for clean upstream fast-forwards.
 
 Disable or replace workflows that require upstream deployment secrets or write access. Keep verification workflows that build and test without publishing.
