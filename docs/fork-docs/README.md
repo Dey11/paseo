@@ -8,6 +8,7 @@ Read this file before non-trivial work. Then read the subject doc that owns the 
 - [testing.md](testing.md) — feature verification and acceptance evidence
 - [connectivity-and-services.md](connectivity-and-services.md) — the HanabiCode connection topology, VPS, recovery path, and service dependencies
 - [cloudflare-tunnel.md](cloudflare-tunnel.md) — the deferred private Cloudflare route and acceptance gate
+- [native-daemon.md](native-daemon.md) — rootless VPS installation, promotion, and rollback
 - [relay-options.md](relay-options.md) — why relay deployment is outside the selected topology
 - [desktop-port-forwarding.md](desktop-port-forwarding.md) — desktop Ports tab and remote VPS port forwarding
 - [distribution.md](distribution.md) — GitHub-built desktop and Android releases
@@ -31,6 +32,8 @@ The primary clients are:
 - the Android app on a personal phone.
 
 The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. Clients first reach the daemon directly over Tailscale. A private Cloudflare Tunnel route is a separate phase after release artifacts work.
+
+The VPS daemon is installed from the GitHub Release's native Linux ARM64 archive. The archive bundles Node and runs as a user systemd service. It does not require Docker, a source checkout, or public npm packages.
 
 The desktop app is a client in this topology. Its built-in local daemon can be disabled while remote hosts stay connected.
 

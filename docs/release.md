@@ -10,10 +10,10 @@ The HanabiCode workflow publishes only:
 
 - ad-hoc-signed macOS DMG and ZIP artifacts for ARM64 and x64;
 - one APK signed with the HanabiCode Android release key;
-- `linux/amd64` and `linux/arm64` daemon images at `ghcr.io/dey11/hanabicode`;
+- one self-contained Ubuntu 22.04 ARM64 daemon archive with a bundled Node runtime;
 - checksums, `LICENSE`, and `NOTICE` in a GitHub Release.
 
-It does not publish `@getpaseo/*` npm packages, EAS builds, store builds, official containers, Cloudflare services, relay services, or upstream GitHub releases.
+It does not publish `@getpaseo/*` npm packages, container images, EAS builds, store builds, Cloudflare services, relay services, or upstream GitHub releases.
 
 ## Release sequence
 

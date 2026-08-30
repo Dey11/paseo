@@ -47,15 +47,11 @@ npm run dev:desktop
 Useful commands:
 
 ```bash
-docker run -d --name hanabicode \
-  -p 6769:6769 \
-  -e PASEO_PASSWORD=change-me \
-  -v "$PWD/hanabicode-home:/home/hanabicode" \
-  -v "$PWD:/workspace" \
-  ghcr.io/dey11/hanabicode:latest
+# Build the native VPS release on Linux ARM64.
+npm run build:daemon:native -- --output-dir ./release-daemon
 ```
 
-Open `http://localhost:6769` after it starts. Extend the base image with the agent CLIs you use, then provide credentials through environment variables or the persistent `/home/hanabicode` volume. See the [Docker documentation](docs/docker.md) for full setup details.
+Normal releases build this archive on GitHub Actions. The archive bundles Node and installs as a rootless user service, so the VPS does not need a source checkout, Docker, or an npm package. See the [native daemon guide](docs/fork-docs/native-daemon.md).
 
 ## CLI
 

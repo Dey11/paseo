@@ -1,6 +1,6 @@
 # HanabiCode distribution
 
-`.github/workflows/hanabicode-release.yml` turns one existing `hanabicode-v*` tag into one GitHub Release. It builds macOS ARM64 and x64 installers, a signed Android APK, and a multi-architecture daemon image. The workflow creates a draft first and publishes it only after every required job succeeds.
+`.github/workflows/hanabicode-release.yml` turns one existing `hanabicode-v*` tag into one GitHub Release. It builds macOS ARM64 and x64 installers, a signed Android APK, and a self-contained Linux ARM64 daemon archive. The workflow creates a draft first and publishes it only after every required job succeeds.
 
 ## Identity
 
@@ -15,8 +15,8 @@
 | URL scheme         | `hanabicode`                                    |
 | CLI                | `hanabicode`                                    |
 | State              | `~/.hanabicode`                                 |
-| Daemon listener    | `127.0.0.1:6769`                                |
-| Daemon image       | `ghcr.io/dey11/hanabicode`                      |
+| Daemon listener    | Tailscale address on port `6769`                |
+| VPS daemon asset   | `HanabiCode-X.Y.Z-linux-arm64.tar.gz`           |
 
 The internal `@getpaseo/*` package namespace, `PASEO_*` environment prefix, protocol identifiers, and `.paseo` project metadata remain compatibility APIs. They are not publication targets.
 
@@ -52,7 +52,7 @@ Add these environment secrets without writing their values to the repository or 
 
 The workflow decodes the keystore only into the runner's temporary directory. It verifies the APK and the expected certificate fingerprint with `apksigner` before upload. Losing this key prevents a future APK from updating an installed HanabiCode app.
 
-GitHub Actions also needs permission to create packages for the repository. The release job requests `packages: write` and uses the scoped `GITHUB_TOKEN`; no separate GHCR password belongs in repository secrets.
+The release workflow needs repository contents write access to create and publish the draft release. It does not need package-registry permissions or an npm token.
 
 ## Cut a release
 
@@ -117,15 +117,18 @@ apksigner verify --verbose --print-certs HanabiCode-v*-android.apk
 
 Test connection setup, terminal and agent traffic, background/resume, reconnect, and an in-place upgrade from the previous APK.
 
-### Daemon image
+### VPS daemon
 
-Pull the exact release version instead of `latest` for production-like use:
+Download the native archive and `SHA256SUMS` from the same release. Verify and extract it on the Ubuntu 22.04 ARM64 VPS:
 
 ```bash
-docker pull ghcr.io/dey11/hanabicode:0.1.0
+sha256sum --check SHA256SUMS --ignore-missing
+tar -xzf HanabiCode-0.1.0-linux-arm64.tar.gz
+cd HanabiCode-0.1.0-linux-arm64
+./install.sh --listen 100.101.102.103:6769 --working-directory /home/dev/projects
 ```
 
-Stable releases also move `latest`; betas never do. Follow [Docker](../docker.md) for state, password, mounts, and listener configuration.
+The archive includes Node and all daemon production dependencies. The installer stages the release under the user's home and writes a user systemd service without starting or restarting it. Follow [Native VPS daemon](native-daemon.md) for password setup, manual promotion, logs, upgrades, and rollback.
 
 ## Deferred release work
 
@@ -133,6 +136,7 @@ Stable releases also move `latest`; betas never do. Follow [Docker](../docker.md
 - app stores, EAS, iOS, and F-Droid
 - Windows and Linux desktop artifacts
 - npm publication
+- x64 daemon archive
 - Cloudflare Tunnel activation
 
 Cloudflare is a separate connectivity phase after the local, Tailscale, and release-artifact checks pass. See [Cloudflare Tunnel](cloudflare-tunnel.md).
@@ -142,7 +146,8 @@ Cloudflare is a separate connectivity phase after the local, Tailscale, and rele
 - Back up the Android signing key and configure all five protected secrets.
 - Confirm HanabiCode and Paseo can run together without shared state, ports, app IDs, or updater state.
 - Confirm every updater and source link targets `Dey11/paseo`.
-- Confirm no tag-triggered workflow targets official npm, Expo, Cloudflare, relay, container, or GitHub resources.
+- Confirm no tag-triggered workflow targets npm, Expo, Cloudflare, relay, container registries, or official GitHub resources.
 - Confirm both macOS architectures install and the Android signature upgrades an earlier build.
+- Confirm the Linux ARM64 archive installs under an isolated home, loads `node-pty`, and never restarts the daemon during installation.
 - Confirm release assets include checksums, `LICENSE`, and `NOTICE`.
 - Replace inherited logo assets or confirm their separate use rights before broad distribution.

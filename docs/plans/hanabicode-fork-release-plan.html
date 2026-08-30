@@ -239,7 +239,7 @@
       <h1>HanabiCode fork and release plan</h1>
       <p class="lede">
         Keep <code>Dey11/paseo</code> easy to update from <code>getpaseo/paseo</code>, while
-        shipping a separate HanabiCode desktop app, Android app, daemon image, state directory,
+        shipping a separate HanabiCode desktop app, Android app, native VPS daemon, state directory,
         updater, and release history.
       </p>
 
@@ -248,13 +248,14 @@
         <p>
           The local <code>hanabicode</code> branch now contains upstream commit
           <code>0dad1d7a6</code> and has no missing commits from <code>upstream/main</code>. It is
-          10 fork commits ahead before the current implementation work. The merge commit is
+          11 fork commits ahead before the current native-release work. The merge commit is
           <code>4f2883a84</code>.
         </p>
         <p>
           The fork identity, independent <code>0.1.x</code> version line, tag-driven release
-          workflow, Android signing contract, daemon image publication, and no-relay connectivity
-          boundary are implemented locally. Verification and final diff review are in progress.
+          workflow, Android signing contract, native ARM64 daemon bundle, rootless installer, and
+          no-relay connectivity boundary are implemented and verified locally. The native archive
+          passes an isolated rootless install, native terminal load, and systemd unit verification.
           Nothing has been pushed, published, or deployed.
         </p>
       </section>
@@ -369,8 +370,8 @@
           <article class="card">
             <h3>Remote daemon</h3>
             <p>
-              Publish a multi-architecture container as <code>ghcr.io/dey11/hanabicode</code>. This
-              is the supported standalone daemon package.
+              Publish a self-contained Ubuntu 22.04 ARM64 archive with its own Node runtime. Install
+              it as a rootless user systemd service without Docker or public npm packages.
             </p>
           </article>
         </div>
@@ -383,13 +384,13 @@
             <h3><span class="decision">Yes</span>, release the daemon from the fork</h3>
             <p>
               App and daemon versions drift in normal use, so the fork must own both. The desktop
-              build already bundles the daemon. The release pipeline should also publish the daemon
-              container from the same tag for the VPS.
+              build already bundles the daemon. The release pipeline also publishes a native Linux
+              ARM64 archive from the same tag for the VPS.
             </p>
             <p>
               Do not publish the upstream <code>@getpaseo/*</code> npm packages. That namespace is
               not the fork's release channel, and the desktop and container do not need public npm
-              publication.
+              publication. The native builder packs those workspaces directly into the archive.
             </p>
           </article>
           <article class="card">
@@ -521,9 +522,9 @@
               <li>Build macOS ARM64 and x64 DMGs and ZIPs with ad-hoc signing.</li>
               <li>Build one universal, release-signed Android APK with Gradle.</li>
               <li>
-                Build and publish the daemon image to
-                <code>ghcr.io/dey11/hanabicode:0.1.0</code> and update
-                <code>hanabicode-latest</code> only for stable releases.
+                Build a self-contained <code>HanabiCode-X.Y.Z-linux-arm64.tar.gz</code> archive on
+                GitHub's Ubuntu 22.04 ARM64 runner. Include Node, the daemon web UI, production
+                dependencies, licenses, source metadata, and the rootless installer.
               </li>
               <li>
                 Merge updater manifests, add checksums, include <code>LICENSE</code> and
@@ -583,47 +584,29 @@
         <div class="phase">
           <div class="phase-number">Phase 6</div>
           <div>
-            <h3>Prove Cloudflare Tunnel connectivity after releases work</h3>
+            <h3>Prove the rootless native daemon package</h3>
             <ul>
               <li>
-                Keep Tailscale direct access as the known-good baseline and recovery path during
-                this phase.
+                Build the archive on GitHub's Ubuntu 22.04 ARM64 runner and include the exact Node
+                runtime used for the build.
               </li>
               <li>
-                Publish and run the fork daemon container on the VPS with
-                <code>PASEO_HOME=/home/dev/.hanabicode</code>, a strong <code>PASEO_PASSWORD</code>,
-                and a loopback or private listener.
+                Run the archive acceptance test under an isolated temporary home. Load
+                <code>node-pty</code>, exercise the installed CLI symlink, and inspect the generated
+                systemd unit.
               </li>
               <li>
-                Install <code>cloudflared</code> on the VPS and create a named, outbound-only
-                tunnel. Start with a Cloudflare private hostname or network route, then enroll macOS
-                and Android through the Cloudflare One client.
+                Install releases under <code>~/.local/share/hanabicode/releases</code> and switch an
+                atomic <code>current</code> symlink. Never start or restart the daemon from the
+                installer.
               </li>
               <li>
-                Add the Cloudflare-reachable daemon as an ordinary direct HanabiCode host. Verify
-                authentication, reconnect, terminal binary frames, agent streams, file transfers,
-                and the Ports feature over long-lived WebSockets.
+                Keep state in <code>~/.hanabicode</code>, bind to the exact Tailscale address on
+                port <code>6769</code>, and run as a user systemd service.
               </li>
               <li>
-                Do not add Cloudflare Access service-token secrets to the app in the first pass.
-                That needs an explicit client credential model, header support, rotation, and a
-                recovery path.
-              </li>
-              <li>
-                If a public hostname is later selected, route it to the loopback daemon, configure
-                <code>PASEO_HOSTNAMES</code>, keep password authentication mandatory, and record
-                that Cloudflare can inspect traffic after TLS termination.
-              </li>
-              <li>
-                If Cloudflare must remain unable to read application data, add a separate protocol
-                project that generalizes the existing relay E2EE wrapper for direct WebSocket
-                transports. Capability-gate it and preserve version-skew compatibility. Do not
-                invent new cryptography.
-              </li>
-              <li>
-                Rewrite the fork connectivity docs after the experiment passes. Retire the current
-                fork-owned-relay decision and keep the old relay plan only as an archived
-                alternative.
+                Promote or roll back manually by selecting a release and explicitly restarting the
+                service after active agents are safe to interrupt.
               </li>
             </ul>
           </div>
@@ -635,12 +618,12 @@
             <h3>Cut the first beta, then stable</h3>
             <ol>
               <li>
-                Cut <code>hanabicode-v0.1.0-beta.1</code> from a reviewed
+                Cut <code>hanabicode-v0.1.1-beta.1</code> from a reviewed
                 <code>hanabicode</code> commit.
               </li>
               <li>
                 Install both macOS architectures where hardware is available, install the APK on the
-                target Android phone, and run the daemon image on the VPS.
+                target Android phone, and run the native daemon archive on the VPS.
               </li>
               <li>
                 Test clean install, pairing, reconnect, app restart, terminal traffic, agent
@@ -680,6 +663,43 @@ npm run format:check
               package names. Keep each HanabiCode opinion in a focused commit so a future conflict
               points to one real product decision.
             </p>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-number">Phase 9</div>
+          <div>
+            <h3>Prove Cloudflare Tunnel connectivity after the release stack works</h3>
+            <ul>
+              <li>
+                Keep Tailscale direct access as the known-good baseline and recovery path during
+                this phase.
+              </li>
+              <li>
+                Name the exact Cloudflare account, Zero Trust organization, and private hostname
+                before creating or changing any hosted resource.
+              </li>
+              <li>
+                Install <code>cloudflared</code> on the VPS and create a named, outbound-only
+                tunnel. Start with a private hostname route, then enroll macOS and Android through
+                the Cloudflare One client.
+              </li>
+              <li>
+                Add the Cloudflare-reachable daemon as an ordinary direct HanabiCode host. Verify
+                authentication, reconnect, terminal binary frames, agent streams, file transfers,
+                and the Ports feature over long-lived WebSockets.
+              </li>
+              <li>
+                Do not add Cloudflare Access service-token secrets to the app in the first pass.
+                That needs an explicit client credential model, header support, rotation, and a
+                recovery path.
+              </li>
+              <li>
+                Keep password authentication mandatory and record that Cloudflare is part of the
+                transport trust boundary. Use Tailscale when Cloudflare must not observe the routed
+                flow.
+              </li>
+            </ul>
           </div>
         </div>
       </section>
@@ -726,8 +746,9 @@ npm run format:check
               <tr>
                 <td>Daemon</td>
                 <td>
-                  Image reports the release version, persists under HanabiCode state, starts without
-                  official service credentials, and accepts the paired clients.
+                  Archive reports the release version, includes Node, loads native terminal code,
+                  installs under an isolated home without restarting services, persists under
+                  HanabiCode state, and accepts the direct clients.
                 </td>
               </tr>
               <tr>
@@ -793,8 +814,8 @@ npm run format:check
           <code>main</code> mirrors upstream. <code>hanabicode</code> carries a small, explicit
           product patch stack plus opinionated features such as port forwarding. A
           <code>hanabicode-v*</code> tag builds the exact tagged commit, leaves a draft while checks
-          run, and publishes macOS, Android, checksums, source notices, and a fork daemon image.
-          Every updater and source link stays inside <code>Dey11/paseo</code>.
+          run, and publishes macOS, Android, checksums, source notices, and a native ARM64 daemon
+          archive. Every updater and source link stays inside <code>Dey11/paseo</code>.
         </p>
         <p>
           The macOS app and Android app pair with the same fork daemon. The desktop can also run its
@@ -806,9 +827,9 @@ npm run format:check
       </section>
 
       <p class="footer">
-        Status: implemented locally and under verification. Remote branch protection, Android
-        secrets, pushes, release tags, artifact publication, and Cloudflare resources remain
-        external activation steps.
+        Status: implemented and verified locally. Remote branch protection, Android secrets, pushes,
+        release tags, artifact publication, VPS promotion, and Cloudflare resources remain external
+        activation steps.
       </p>
     </main>
   </body>

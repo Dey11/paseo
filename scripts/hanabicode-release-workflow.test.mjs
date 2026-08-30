@@ -30,7 +30,7 @@ test("the release is draft-first and publishes only after every requested artifa
     "quality",
     "macos",
     "android",
-    "daemon-image",
+    "daemon-linux",
   ]);
   assert.match(workflow.jobs.prepare.steps.at(-1).run, /--draft/);
   assert.match(workflow.jobs.publish.steps.at(-1).run, /--draft=false/);
@@ -41,7 +41,7 @@ test("the release is draft-first and publishes only after every requested artifa
   );
 });
 
-test("the first release set is macOS, Android, and a multi-architecture daemon image", () => {
+test("the first release set is macOS, Android, and a native Linux ARM64 daemon", () => {
   assert.equal(workflow.jobs.windows, undefined);
   assert.deepEqual(workflow.jobs.macos.strategy.matrix.include, [
     { runner: "macos-15", arch: "arm64" },
@@ -61,23 +61,40 @@ test("the first release set is macOS, Android, and a multi-architecture daemon i
     /apksigner[\s\S]*ANDROID_CERT_SHA256/,
   );
 
-  const imageBuild = workflow.jobs["daemon-image"].steps.find(
-    (step) => step.name === "Build and publish image",
+  const daemonBuild = workflow.jobs["daemon-linux"].steps.find(
+    (step) => step.name === "Build native daemon bundle",
   );
-  assert.deepEqual(workflow.jobs["daemon-image"].needs, ["prepare", "quality", "macos", "android"]);
-  assert.equal(imageBuild.with.platforms, "linux/amd64,linux/arm64");
-  assert.equal(imageBuild.with.push, true);
-  assert.match(workflowSource, /ghcr\.io\/\$\{owner\}\/hanabicode/);
+  assert.deepEqual(workflow.jobs["daemon-linux"].needs, ["prepare", "quality"]);
+  assert.equal(workflow.jobs["daemon-linux"]["runs-on"], "ubuntu-22.04-arm");
+  assert.match(daemonBuild.run, /npm run build:daemon:native/);
+  assert.match(daemonBuild.run, /--source-commit "\$RELEASE_COMMIT"/);
+  assert.match(
+    workflow.jobs["daemon-linux"].steps.find((step) => step.name === "Test native daemon bundle")
+      .run,
+    /hanabicode-native-bundle\.test\.mjs/,
+  );
+  assert.doesNotMatch(workflowSource, /ghcr\.io|docker\/build-push-action|packages: write/);
 });
 
-test("the daemon image packs and installs the tagged fork source", () => {
-  const dockerfile = readFileSync(new URL("docker/base/Dockerfile", repositoryRoot), "utf8");
-  assert.match(dockerfile, /COPY \. \./);
-  assert.match(dockerfile, /mkdir -p \/tmp\/hanabicode-packs/);
-  assert.match(dockerfile, /--pack-destination \/tmp\/hanabicode-packs/);
-  assert.match(dockerfile, /COPY --from=source-pack \/tmp\/hanabicode-packs/);
-  assert.match(dockerfile, /npm install -g \/tmp\/hanabicode-packs\/\*\.tgz/);
-  assert.doesNotMatch(dockerfile, /\/tmp\/paseo-packs/);
+test("the native daemon is self-contained and promotion remains manual", () => {
+  const builder = readFileSync(
+    new URL("scripts/build-hanabicode-native-bundle.mjs", repositoryRoot),
+    "utf8",
+  );
+  const installer = readFileSync(
+    new URL("scripts/install-hanabicode-native.sh", repositoryRoot),
+    "utf8",
+  );
+  assert.match(builder, /process\.platform !== "linux" \|\| process\.arch !== "arm64"/);
+  assert.match(builder, /copyFileSync\(process\.execPath, bundledNode\)/);
+  assert.match(builder, /--allow-scripts=esbuild,node-pty/);
+  assert.match(builder, /createRequire[\s\S]*node-pty/);
+  assert.match(builder, /@getpaseo\/server/);
+  assert.match(builder, /@getpaseo\/cli/);
+  assert.match(installer, /systemctl --user enable hanabicode\.service/);
+  assert.match(installer, /The running daemon was not restarted/);
+  assert.doesNotMatch(installer, /^\s*systemctl --user (?:start|restart) hanabicode\.service/m);
+  assert.doesNotMatch(installer, /docker/);
 });
 
 test("every renderer build records the exact release source commit", () => {
@@ -156,6 +173,7 @@ test("legacy and official release publishers stay retired", () => {
     ".github/workflows/deploy-website.yml",
     ".github/workflows/desktop-release.yml",
     ".github/workflows/desktop-rollout.yml",
+    ".github/workflows/docker.yml",
     ".github/workflows/nix-update-hash.yml",
     "packages/app/eas.json",
     "packages/app/.eas/workflows/release-ios-beta.yml",
@@ -166,13 +184,6 @@ test("legacy and official release publishers stay retired", () => {
   }
 
   assert.doesNotMatch(workflowSource, /getpaseo\/paseo|ghcr\.io\/getpaseo/);
-  const dockerWorkflow = readFileSync(
-    new URL(".github/workflows/docker.yml", repositoryRoot),
-    "utf8",
-  );
-  assert.match(dockerWorkflow, /push: false/);
-  assert.doesNotMatch(dockerWorkflow, /packages: write|push: true/);
-
   const packageJson = JSON.parse(readFileSync(new URL("package.json", repositoryRoot), "utf8"));
   assert.equal(packageJson.scripts["release:publish"], undefined);
   assert.equal(packageJson.scripts["release:push"], undefined);

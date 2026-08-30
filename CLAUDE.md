@@ -49,6 +49,7 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 | [docs/plugins.md](docs/plugins.md)                                         | Local plugin manifest, directory source config, RPCs, native surfaces, and attachment sources                                  |
 | [docs/service-proxy.md](docs/service-proxy.md)                             | Service proxy: exposing workspace scripts at public URLs, DNS setup, reverse proxy config                                      |
 | [docs/fork-docs/cloudflare-tunnel.md](docs/fork-docs/cloudflare-tunnel.md) | HanabiCode's deferred private Cloudflare Tunnel topology, trust boundary, and acceptance gate                                  |
+| [docs/fork-docs/native-daemon.md](docs/fork-docs/native-daemon.md)         | HanabiCode's rootless native VPS installation, promotion, rollback, and source-build boundary                                  |
 | [docs/development.md](docs/development.md)                                 | Dev server, build sync gotchas, CLI reference, agent state, Playwright MCP                                                     |
 | [docs/rpc-namespacing.md](docs/rpc-namespacing.md)                         | WebSocket RPC naming convention — dotted namespaces and `.request`/`.response` pairs                                           |
 | [docs/protocol-compatibility.md](docs/protocol-compatibility.md)           | Why app/daemon versions drift, protocol vs feature contract, capability gating, COMPAT tagging                                 |
@@ -65,7 +66,7 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 | [docs/ad-hoc-daemon-testing.md](docs/ad-hoc-daemon-testing.md)             | Isolated in-process daemon test harness                                                                                        |
 | [docs/browser-capture-harness.md](docs/browser-capture-harness.md)         | Real-Electron browser screenshot harness and compositor-surface gotcha                                                         |
 | [docs/android.md](docs/android.md)                                         | App variants, local/cloud builds, EAS workflows, version codes, F-Droid source builds and store metadata                       |
-| [docs/docker.md](docs/docker.md)                                           | Running the daemon and bundled web UI in Docker, volumes, agent images, security                                               |
+| [docs/docker.md](docs/docker.md)                                           | Status of the inherited Docker source after HanabiCode moved releases to native bundles                                        |
 | [docs/release.md](docs/release.md)                                         | Release playbook, draft releases, completion checklist                                                                         |
 | [docs/terminal-activity.md](docs/terminal-activity.md)                     | Terminal activity indicators — source-agnostic tracker, agent hook reporting, adding a new hook provider                       |
 | [SECURITY.md](SECURITY.md)                                                 | Relay threat model, E2E encryption, DNS rebinding, agent auth                                                                  |

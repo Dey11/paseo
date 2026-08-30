@@ -29,16 +29,17 @@ Cloudflare becomes part of the transport trust boundary. A private route encrypt
 
 ## Service boundary
 
-| Service                                | Fork policy                                                       |
-| -------------------------------------- | ----------------------------------------------------------------- |
-| Official Paseo relay                   | Never use                                                         |
-| Fork-owned relay                       | Do not build or deploy                                            |
-| Tailscale                              | Primary and recovery direct path                                  |
-| Cloudflare Tunnel                      | Deferred private direct path                                      |
-| Public Cloudflare hostname             | Optional later; requires a separate exposure review               |
-| Hosted Paseo Hub                       | Do not use                                                        |
-| Official Expo/EAS, Firebase, or stores | Do not use                                                        |
-| GitHub Releases and GHCR               | Publish only through `Dey11/paseo` and `ghcr.io/dey11/hanabicode` |
-| Official npm packages                  | Do not publish                                                    |
+| Service                                | Fork policy                                         |
+| -------------------------------------- | --------------------------------------------------- |
+| Official Paseo relay                   | Never use                                           |
+| Fork-owned relay                       | Do not build or deploy                              |
+| Tailscale                              | Primary and recovery direct path                    |
+| Cloudflare Tunnel                      | Deferred private direct path                        |
+| Public Cloudflare hostname             | Optional later; requires a separate exposure review |
+| Hosted Paseo Hub                       | Do not use                                          |
+| Official Expo/EAS, Firebase, or stores | Do not use                                          |
+| GitHub Releases                        | Publish only through `Dey11/paseo`                  |
+| Container registries                   | Do not publish                                      |
+| Official npm packages                  | Do not publish                                      |
 
 HanabiCode launches provider CLIs with the accounts already authenticated on the daemon host. It does not broker model billing or embed provider credentials in app packages.
