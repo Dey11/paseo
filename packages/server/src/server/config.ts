@@ -28,6 +28,7 @@ import {
   DEFAULT_HANABICODE_APP_BASE_URL,
   DEFAULT_HANABICODE_PORT,
   DEFAULT_HANABICODE_RELAY_ENDPOINT,
+  DEFAULT_HANABICODE_RELAY_USE_TLS,
 } from "./product.js";
 
 const DEFAULT_PORT = DEFAULT_HANABICODE_PORT;
@@ -309,7 +310,11 @@ function resolveRelayConfig(input: ResolveRelayInput): ResolvedRelay {
     endpoint;
   const useTls =
     input.cliRelayUseTls ??
-    resolveTlsFromEnv(input.env.PASEO_RELAY_USE_TLS, input.persisted.daemon?.relay?.useTls, false);
+    resolveTlsFromEnv(
+      input.env.PASEO_RELAY_USE_TLS,
+      input.persisted.daemon?.relay?.useTls,
+      DEFAULT_HANABICODE_RELAY_USE_TLS,
+    );
   const publicUseTls = resolveTlsFromEnv(
     input.env.PASEO_RELAY_PUBLIC_USE_TLS,
     input.persisted.daemon?.relay?.publicUseTls,

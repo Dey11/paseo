@@ -16,6 +16,7 @@
 | CLI                | `hanabicode`                                    |
 | State              | `~/.hanabicode`                                 |
 | Daemon listener    | Tailscale address on port `6769`                |
+| Default relay      | `relay.paseo.sh:443` over TLS                   |
 | VPS daemon asset   | `HanabiCode-X.Y.Z-linux-arm64.tar.gz`           |
 
 The internal `@getpaseo/*` package namespace, `PASEO_*` environment prefix, protocol identifiers, and `.paseo` project metadata remain compatibility APIs. They are not publication targets.
@@ -128,7 +129,7 @@ cd HanabiCode-0.1.0-linux-arm64
 ./install.sh --listen 100.101.102.103:6769 --working-directory /home/dev/projects
 ```
 
-The archive includes Node and all daemon production dependencies. The installer stages the release under the user's home and writes a user systemd service without starting or restarting it. Follow [Native VPS daemon](native-daemon.md) for password setup, manual promotion, logs, upgrades, and rollback.
+The archive includes Node and all daemon production dependencies. The installer stages the release under the user's home and writes a user systemd service without starting or restarting it. The service uses the official relay with TLS by default and keeps the Tailscale listener available for recovery. Follow [Native VPS daemon](native-daemon.md) for pairing, password setup, manual promotion, logs, upgrades, rollback, and future self-hosted relay configuration.
 
 ## Deferred release work
 
@@ -137,16 +138,17 @@ The archive includes Node and all daemon production dependencies. The installer 
 - Windows and Linux desktop artifacts
 - npm publication
 - x64 daemon archive
+- self-hosted relay deployment
 - Cloudflare Tunnel activation
 
-Cloudflare is a separate connectivity phase after the local, Tailscale, and release-artifact checks pass. See [Cloudflare Tunnel](cloudflare-tunnel.md).
+Cloudflare Tunnel is a shelved alternative. The next connectivity phase is a fork-owned deployment of the production Paseo relay. See [Relay deployment](relay-options.md).
 
 ## First-release gate
 
 - Back up the Android signing key and configure all five protected secrets.
 - Confirm HanabiCode and Paseo can run together without shared state, ports, app IDs, or updater state.
 - Confirm every updater and source link targets `Dey11/paseo`.
-- Confirm no tag-triggered workflow targets npm, Expo, Cloudflare, relay, container registries, or official GitHub resources.
+- Confirm no tag-triggered workflow deploys npm, Expo, Cloudflare, relay, container registry, or official GitHub resources. Using the hosted relay at runtime does not grant deployment authority.
 - Confirm both macOS architectures install and the Android signature upgrades an earlier build.
 - Confirm the Linux ARM64 archive installs under an isolated home, loads `node-pty`, and never restarts the daemon during installation.
 - Confirm release assets include checksums, `LICENSE`, and `NOTICE`.

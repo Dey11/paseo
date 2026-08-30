@@ -8,7 +8,7 @@ Paseo is a mobile app for monitoring and controlling your local AI coding agents
 
 This checkout is Dey's personal Paseo downstream, not the official `getpaseo/paseo` product checkout. Before non-trivial work, read [docs/fork-docs/README.md](docs/fork-docs/README.md). The fork docs own personal goals, supported deployment topology, testing expectations, release boundaries, and upstream policy. They override official-product assumptions when the two differ.
 
-Do not publish to official Paseo services, package names, application identifiers, Expo projects, update channels, container registries, or GitHub releases. Do not make the fork depend on the official relay, Cloudflare deployments, Hub, or store infrastructure unless the user explicitly chooses that service and target.
+Do not publish to official Paseo services, package names, application identifiers, Expo projects, update channels, container registries, or GitHub releases. The user explicitly selected the official Paseo relay as the interim runtime transport, with Tailscale recovery and a later fork-owned deployment of `getpaseo/paseo-relay`. Do not deploy or modify relay infrastructure, Cloudflare, Hub, or store infrastructure unless the user names the service and target.
 
 ## Repository map
 

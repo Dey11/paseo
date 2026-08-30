@@ -13,8 +13,8 @@ import {
   shouldUseTlsForDefaultHostedRelay,
 } from "./daemon-endpoints.js";
 
-test("the fork relay default stays local and opt-in", () => {
-  expect(DEFAULT_RELAY_ENDPOINT).toBe("127.0.0.1:4000");
+test("the fork defaults to the official Paseo relay", () => {
+  expect(DEFAULT_RELAY_ENDPOINT).toBe("relay.paseo.sh:443");
 });
 
 describe("connection URI parsing", () => {

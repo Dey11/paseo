@@ -10,6 +10,9 @@ Options:
   --home PATH               Daemon state directory (default: ~/.hanabicode)
   --listen HOST:PORT        Install/update the systemd user service for this address
   --working-directory PATH  Service working directory (default: ~/projects)
+  --relay-endpoint HOST:PORT Relay endpoint (default: relay.paseo.sh:443)
+  --relay-use-tls BOOL      Use TLS for relay traffic (default: true)
+  --no-relay                Disable relay and use direct connections only
   --no-service              Install binaries without changing the user service
   -h, --help                Show this help
 
@@ -22,6 +25,9 @@ INSTALL_ROOT=${HANABICODE_INSTALL_ROOT:-"$HOME/.local/share/hanabicode"}
 HANABICODE_HOME=${HANABICODE_HOME:-"$HOME/.hanabicode"}
 LISTEN_ADDRESS=""
 WORKING_DIRECTORY=${HANABICODE_WORKING_DIRECTORY:-"$HOME/projects"}
+RELAY_ENABLED=${HANABICODE_RELAY_ENABLED:-true}
+RELAY_ENDPOINT=${HANABICODE_RELAY_ENDPOINT:-"relay.paseo.sh:443"}
+RELAY_USE_TLS=${HANABICODE_RELAY_USE_TLS:-true}
 INSTALL_SERVICE=true
 
 while [ "$#" -gt 0 ]; do
@@ -46,6 +52,20 @@ while [ "$#" -gt 0 ]; do
       WORKING_DIRECTORY=$2
       shift 2
       ;;
+    --relay-endpoint)
+      [ "$#" -ge 2 ] || { print_usage >&2; exit 1; }
+      RELAY_ENDPOINT=$2
+      shift 2
+      ;;
+    --relay-use-tls)
+      [ "$#" -ge 2 ] || { print_usage >&2; exit 1; }
+      RELAY_USE_TLS=$2
+      shift 2
+      ;;
+    --no-relay)
+      RELAY_ENABLED=false
+      shift
+      ;;
     --no-service)
       INSTALL_SERVICE=false
       shift
@@ -61,6 +81,15 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+case "$RELAY_ENABLED" in
+  true|false) ;;
+  *) echo "HANABICODE_RELAY_ENABLED must be true or false." >&2; exit 1 ;;
+esac
+case "$RELAY_USE_TLS" in
+  true|false) ;;
+  *) echo "--relay-use-tls must be true or false." >&2; exit 1 ;;
+esac
 
 if [ "$INSTALL_SERVICE" = true ] && [ -z "$LISTEN_ADDRESS" ]; then
   echo "--listen is required unless --no-service is used." >&2
@@ -80,6 +109,7 @@ if [ "$INSTALL_SERVICE" = true ]; then
   HANABICODE_HOME="$HANABICODE_HOME" \
   LISTEN_ADDRESS="$LISTEN_ADDRESS" \
   WORKING_DIRECTORY="$WORKING_DIRECTORY" \
+  RELAY_ENDPOINT="$RELAY_ENDPOINT" \
   "$RUNTIME_NODE" <<'NODE'
 const values = {
   HOME: process.env.HOME,
@@ -87,6 +117,7 @@ const values = {
   HANABICODE_HOME: process.env.HANABICODE_HOME,
   LISTEN_ADDRESS: process.env.LISTEN_ADDRESS,
   WORKING_DIRECTORY: process.env.WORKING_DIRECTORY,
+  RELAY_ENDPOINT: process.env.RELAY_ENDPOINT,
 };
 for (const [name, value] of Object.entries(values)) {
   if (!value || /[\s"'\\%$]/.test(value)) {
@@ -133,6 +164,9 @@ if [ "$INSTALL_SERVICE" = true ]; then
   HANABICODE_HOME="$HANABICODE_HOME" \
   LISTEN_ADDRESS="$LISTEN_ADDRESS" \
   WORKING_DIRECTORY="$WORKING_DIRECTORY" \
+  RELAY_ENABLED="$RELAY_ENABLED" \
+  RELAY_ENDPOINT="$RELAY_ENDPOINT" \
+  RELAY_USE_TLS="$RELAY_USE_TLS" \
   SERVICE_PATH="$SERVICE_PATH" \
   "$RUNTIME_NODE" <<'NODE'
 const fs = require("node:fs");
@@ -141,6 +175,10 @@ const installRoot = process.env.INSTALL_ROOT;
 const daemonHome = process.env.HANABICODE_HOME;
 const listenAddress = process.env.LISTEN_ADDRESS;
 const workingDirectory = process.env.WORKING_DIRECTORY;
+const relayEnabled = process.env.RELAY_ENABLED === "true";
+const relayEndpoint = process.env.RELAY_ENDPOINT;
+const relayUseTls = process.env.RELAY_USE_TLS;
+const relayArgument = relayEnabled ? "--relay" : "--no-relay";
 const pathValue = [
   `${home}/.local/bin`,
   `${home}/.bun/bin`,
@@ -158,8 +196,12 @@ Wants=network-online.target
 Type=simple
 Environment=HOME=${home}
 Environment=PATH=${pathValue}
+Environment=PASEO_RELAY_ENDPOINT=${relayEndpoint}
+Environment=PASEO_RELAY_PUBLIC_ENDPOINT=${relayEndpoint}
+Environment=PASEO_RELAY_USE_TLS=${relayUseTls}
+Environment=PASEO_RELAY_PUBLIC_USE_TLS=${relayUseTls}
 WorkingDirectory=${workingDirectory}
-ExecStart=${installRoot}/current/bin/hanabicode daemon start --foreground --listen ${listenAddress} --home ${daemonHome} --no-relay --web-ui
+ExecStart=${installRoot}/current/bin/hanabicode daemon start --foreground --listen ${listenAddress} --home ${daemonHome} ${relayArgument} --web-ui
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
@@ -181,6 +223,15 @@ fi
 printf 'Installed HanabiCode %s at %s\n' "$VERSION" "$RELEASE_DIRECTORY"
 printf 'Selected release: %s/current\n' "$INSTALL_ROOT"
 if [ "$INSTALL_SERVICE" = true ]; then
+  if [ "$RELAY_ENABLED" = true ]; then
+    if [ "$RELAY_USE_TLS" = true ]; then
+      printf 'Relay: wss://%s/ws\n' "$RELAY_ENDPOINT"
+    else
+      printf 'Relay: ws://%s/ws\n' "$RELAY_ENDPOINT"
+    fi
+  else
+    echo "Relay: disabled"
+  fi
   if systemctl --user is-active --quiet hanabicode.service; then
     echo "The running daemon was not restarted. Promote this release when ready:"
     echo "  systemctl --user restart hanabicode.service"

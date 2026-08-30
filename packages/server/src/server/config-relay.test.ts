@@ -119,12 +119,12 @@ describe("daemon relay config", () => {
       version: 1,
       daemon: { relay: {} },
     });
-    expect(loadConfig(defaultHome, { env: {} }).relayUseTls).toBe(false);
+    expect(loadConfig(defaultHome, { env: {} }).relayUseTls).toBe(true);
   });
 
   test("relayPublicUseTls falls back to relayUseTls when unset", async () => {
     const home = await createPaseoHome({ version: 1, daemon: { relay: {} } });
-    expect(loadConfig(home, { env: {} }).relayPublicUseTls).toBe(false);
+    expect(loadConfig(home, { env: {} }).relayPublicUseTls).toBe(true);
   });
 
   test("PASEO_RELAY_PUBLIC_USE_TLS overrides relayUseTls for public side", async () => {

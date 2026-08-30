@@ -87,6 +87,7 @@ try {
   );
   assert.match(installerOutput, /Set the daemon password before the first start/);
   assert.match(installerOutput, /systemctl --user start hanabicode\.service/);
+  assert.match(installerOutput, /Relay: wss:\/\/relay\.paseo\.sh:443\/ws/);
 
   const installRoot = path.join(testHome, ".local", "share", "hanabicode");
   const currentLink = path.join(installRoot, "current");
@@ -99,8 +100,44 @@ try {
   const service = readFileSync(servicePath, "utf8");
   assert.match(service, /--listen 100\.64\.0\.1:6769/);
   assert.match(service, /--home .+\/\.hanabicode/);
-  assert.match(service, /--no-relay --web-ui/);
+  assert.match(service, /--relay --web-ui/);
+  assert.match(service, /Environment=PASEO_RELAY_ENDPOINT=relay\.paseo\.sh:443/);
+  assert.match(service, /Environment=PASEO_RELAY_PUBLIC_ENDPOINT=relay\.paseo\.sh:443/);
+  assert.match(service, /Environment=PASEO_RELAY_USE_TLS=true/);
+  assert.match(service, /Environment=PASEO_RELAY_PUBLIC_USE_TLS=true/);
   assert.match(service, /WorkingDirectory=.+\/projects/);
+  run("systemd-analyze", ["--user", "verify", servicePath], { env: environment });
+
+  run(
+    path.join(bundleRoot, "install.sh"),
+    [
+      "--listen",
+      "100.64.0.1:6769",
+      "--working-directory",
+      workingDirectory,
+      "--relay-endpoint",
+      "relay.hanabicode.example:8443",
+      "--relay-use-tls",
+      "false",
+    ],
+    { env: environment },
+  );
+  const selfHostedService = readFileSync(servicePath, "utf8");
+  assert.match(selfHostedService, /--relay --web-ui/);
+  assert.match(
+    selfHostedService,
+    /Environment=PASEO_RELAY_ENDPOINT=relay\.hanabicode\.example:8443/,
+  );
+  assert.match(selfHostedService, /Environment=PASEO_RELAY_USE_TLS=false/);
+  run("systemd-analyze", ["--user", "verify", servicePath], { env: environment });
+
+  run(
+    path.join(bundleRoot, "install.sh"),
+    ["--listen", "100.64.0.1:6769", "--working-directory", workingDirectory, "--no-relay"],
+    { env: environment },
+  );
+  const directOnlyService = readFileSync(servicePath, "utf8");
+  assert.match(directOnlyService, /--no-relay --web-ui/);
   run("systemd-analyze", ["--user", "verify", servicePath], { env: environment });
 
   const systemctlCalls = readFileSync(systemctlLog, "utf8");

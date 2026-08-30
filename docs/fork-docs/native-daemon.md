@@ -23,6 +23,7 @@ Replace the sample address with `tailscale ip -4` from the VPS. The installer:
 - atomically selects it through `~/.local/share/hanabicode/current`;
 - links `~/.local/bin/hanabicode`;
 - writes and enables `~/.config/systemd/user/hanabicode.service`;
+- enables the official Paseo relay at `relay.paseo.sh:443` with TLS;
 - keeps daemon state under `~/.hanabicode`;
 - does not start or restart the service.
 
@@ -41,7 +42,15 @@ journalctl --user -u hanabicode.service -f
 ~/.local/bin/hanabicode daemon status --home ~/.hanabicode
 ```
 
-Add `100.101.102.103:6769` as a direct host in the macOS and Android clients with SSL off. Tailscale encrypts that path. Use the daemon password as a separate access control.
+Create a relay pairing offer and open it on macOS or Android:
+
+```bash
+~/.local/bin/hanabicode daemon pair --home ~/.hanabicode --relay
+```
+
+Keep `100.101.102.103:6769` as a direct host in both clients with SSL off. Tailscale encrypts that recovery path. Use the daemon password as a separate access control.
+
+To install against a future self-hosted relay, pass `--relay-endpoint relay.example.com:443 --relay-use-tls true`. The installer rewrites the service but does not restart it. Use `--no-relay` only for a direct-only installation.
 
 ## Upgrade
 

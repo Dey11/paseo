@@ -246,17 +246,17 @@
       <section class="card status">
         <h2>Current state</h2>
         <p>
-          The local <code>hanabicode</code> branch now contains upstream commit
-          <code>0dad1d7a6</code> and has no missing commits from <code>upstream/main</code>. It is
-          11 fork commits ahead before the current native-release work. The merge commit is
-          <code>4f2883a84</code>.
+          The local <code>hanabicode</code> branch contains upstream commit
+          <code>adf80a9fe</code> through merge commit <code>ac565b0b2</code>. The fork keeps its
+          standalone identity and hosted-Hub boundary while taking the latest upstream features.
         </p>
         <p>
           The fork identity, independent <code>0.1.x</code> version line, tag-driven release
           workflow, Android signing contract, native ARM64 daemon bundle, rootless installer, and
-          no-relay connectivity boundary are implemented and verified locally. The native archive
-          passes an isolated rootless install, native terminal load, and systemd unit verification.
-          Nothing has been pushed, published, or deployed.
+          relay configuration boundary are implemented. The current release uses the official Paseo
+          relay over TLS, keeps Tailscale recovery, and accepts a future fork-owned endpoint. The
+          Android signing secrets are configured in the protected GitHub environment. No HanabiCode
+          release has been published yet.
         </p>
       </section>
 
@@ -347,7 +347,7 @@
           <div><strong>macOS</strong><span class="muted">HanabiCode desktop</span></div>
           <div><strong>Android</strong><span class="muted">signed APK</span></div>
           <div>
-            <strong>Cloudflare Tunnel</strong><span class="muted">later connectivity phase</span>
+            <strong>Official Paseo relay</strong><span class="muted">current encrypted path</span>
           </div>
           <div><strong>Daemon</strong><span class="muted">VPS or built-in Mac daemon</span></div>
           <div><strong>Agents</strong><span class="muted">Codex, Claude, OpenCode, Pi</span></div>
@@ -394,25 +394,21 @@
             </p>
           </article>
           <article class="card">
-            <h3>
-              <span class="optional">Later phase</span>, use Cloudflare Tunnel without a relay
-            </h3>
+            <h3><span class="decision">Now</span>, use the official relay; self-host it later</h3>
             <p>
-              Do not deploy or fork the Paseo relay. Build and test macOS, Android, and the daemon
-              with local or Tailscale connectivity first. Once those artifacts work, connect the VPS
-              daemon through a named Cloudflare Tunnel.
+              Point the release daemon and pairing offers at <code>relay.paseo.sh:443</code> over
+              TLS. The client and daemon keep application frames end-to-end encrypted, and the VPS
+              needs no public inbound port.
             </p>
             <p>
-              The preferred first experiment is a private hostname or private route through
-              Cloudflare One. The Mac and Android phone enroll in the same Zero Trust organization
-              through the Cloudflare One client. This keeps the daemon off a public hostname and
-              does not require a HanabiCode protocol change.
+              Keep Tailscale as a saved direct recovery path. The installer accepts a relay endpoint
+              and TLS policy so a future deployment can move to a fork-owned hostname without a
+              product code change.
             </p>
             <p>
-              A public WSS hostname is simpler for the app but weaker as a trust boundary.
-              Cloudflare terminates TLS, so it can observe daemon traffic. Use that mode only if
-              this tradeoff is accepted. Password authentication controls access but does not add
-              application-layer encryption.
+              The future deployment uses the Elixir service from
+              <code>getpaseo/paseo-relay</code>. The Cloudflare Durable Objects adapter in this
+              monorepo is legacy code, not the production relay.
             </p>
           </article>
         </div>
@@ -602,7 +598,8 @@
               </li>
               <li>
                 Keep state in <code>~/.hanabicode</code>, bind to the exact Tailscale address on
-                port <code>6769</code>, and run as a user systemd service.
+                port <code>6769</code>, enable <code>relay.paseo.sh:443</code> over TLS, and run as
+                a user systemd service.
               </li>
               <li>
                 Promote or roll back manually by selecting a release and explicitly restarting the
@@ -669,35 +666,30 @@ npm run format:check
         <div class="phase">
           <div class="phase-number">Phase 9</div>
           <div>
-            <h3>Prove Cloudflare Tunnel connectivity after the release stack works</h3>
+            <h3>Deploy and prove the fork-owned Paseo relay</h3>
             <ul>
+              <li>Keep the official relay and Tailscale as known-good paths during migration.</li>
               <li>
-                Keep Tailscale direct access as the known-good baseline and recovery path during
-                this phase.
+                Select a fork-owned hostname, deployment target, TLS termination, monitoring, and
+                backup policy before creating hosted resources.
               </li>
               <li>
-                Name the exact Cloudflare account, Zero Trust organization, and private hostname
-                before creating or changing any hosted resource.
+                Deploy the production Elixir implementation from
+                <code>getpaseo/paseo-relay</code>. Do not promote the legacy Cloudflare adapter from
+                <code>packages/relay</code> into production.
               </li>
               <li>
-                Install <code>cloudflared</code> on the VPS and create a named, outbound-only
-                tunnel. Start with a private hostname route, then enroll macOS and Android through
-                the Cloudflare One client.
+                Verify pairing, reconnect, terminal binary frames, agent streams, file transfers,
+                Android background/resume, long-thread loading, and Ports over long-lived relay
+                WebSockets.
               </li>
               <li>
-                Add the Cloudflare-reachable daemon as an ordinary direct HanabiCode host. Verify
-                authentication, reconnect, terminal binary frames, agent streams, file transfers,
-                and the Ports feature over long-lived WebSockets.
+                Reinstall the daemon with the fork-owned endpoint and create new pairing offers.
+                Existing pairing offers keep their original relay endpoint.
               </li>
               <li>
-                Do not add Cloudflare Access service-token secrets to the app in the first pass.
-                That needs an explicit client credential model, header support, rotation, and a
-                recovery path.
-              </li>
-              <li>
-                Keep password authentication mandatory and record that Cloudflare is part of the
-                transport trust boundary. Use Tailscale when Cloudflare must not observe the routed
-                flow.
+                Retain the official relay until the self-hosted service passes the full matrix, then
+                remove that hosted dependency in a separate promotion.
               </li>
             </ul>
           </div>
@@ -752,12 +744,11 @@ npm run format:check
                 </td>
               </tr>
               <tr>
-                <td>Cloudflare Tunnel</td>
+                <td>Relay</td>
                 <td>
-                  Private-route access from macOS and Android, direct daemon authentication, text
-                  and binary WebSocket frames, reconnect, app restart, one forwarded HTTP service,
-                  WebSocket or HMR traffic, and Tailscale recovery. A public-hostname test must also
-                  record the TLS termination and data-observability tradeoff.
+                  Pairing from macOS and Android, text and binary frames, reconnect, app restart,
+                  one forwarded HTTP service, WebSocket or HMR traffic, long-thread loading, and
+                  Tailscale recovery.
                 </td>
               </tr>
               <tr>
@@ -801,8 +792,8 @@ npm run format:check
               <li>Windows and Linux desktop release assets</li>
               <li>Expo/EAS and push notifications</li>
               <li>Public website deployment</li>
-              <li>Cloudflare Tunnel production rollout</li>
-              <li>Application-layer E2EE for direct Cloudflare WebSockets</li>
+              <li>Fork-owned Paseo relay deployment</li>
+              <li>Cloudflare Tunnel alternative</li>
             </ul>
           </article>
         </div>
@@ -819,17 +810,17 @@ npm run format:check
         </p>
         <p>
           The macOS app and Android app pair with the same fork daemon. The desktop can also run its
-          bundled daemon locally. Remote access is added later through a Cloudflare private route,
-          with the Cloudflare One client on macOS and Android and Tailscale as recovery. No Paseo
-          relay is deployed. Upstream code remains useful without owning HanabiCode's identity,
-          releases, state, signing keys, or infrastructure.
+          bundled daemon locally. Remote access uses the official Paseo relay over TLS with
+          Tailscale as recovery. A later infrastructure phase moves the same protocol to a
+          fork-owned relay endpoint. Upstream code remains useful without owning HanabiCode's
+          identity, releases, state, signing keys, or future infrastructure.
         </p>
       </section>
 
       <p class="footer">
-        Status: implemented and verified locally. Remote branch protection, Android secrets, pushes,
-        release tags, artifact publication, VPS promotion, and Cloudflare resources remain external
-        activation steps.
+        Status: release implementation and Android signing setup are complete. Branch push, release
+        tag, artifact publication, device installation, VPS promotion, and the future self-hosted
+        relay remain activation steps.
       </p>
     </main>
   </body>

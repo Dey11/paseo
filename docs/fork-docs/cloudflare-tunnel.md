@@ -1,10 +1,10 @@
 # Cloudflare Tunnel phase
 
-Status: deferred until macOS, Android, and daemon artifacts pass the release gate.
+Status: shelved. The active design uses the official Paseo relay now and a fork-owned Paseo relay later.
 
-Use Cloudflare Tunnel as a private route to HanabiCode's direct WebSocket listener. Do not add a relay service. Tailscale remains the first working path and the recovery path.
+Keep this design only as an alternative if the relay plan is revisited. It routes the daemon's direct WebSocket listener through Cloudflare One and does not implement the Paseo relay protocol. Tailscale would remain the recovery path.
 
-## Chosen topology
+## Proposed topology
 
 ```text
 HanabiCode on macOS or Android

@@ -7,9 +7,9 @@ Read this file before non-trivial work. Then read the subject doc that owns the 
 - [development.md](development.md) — local and VPS development loops
 - [testing.md](testing.md) — feature verification and acceptance evidence
 - [connectivity-and-services.md](connectivity-and-services.md) — the HanabiCode connection topology, VPS, recovery path, and service dependencies
-- [cloudflare-tunnel.md](cloudflare-tunnel.md) — the deferred private Cloudflare route and acceptance gate
+- [cloudflare-tunnel.md](cloudflare-tunnel.md) — the shelved private Cloudflare alternative
 - [native-daemon.md](native-daemon.md) — rootless VPS installation, promotion, and rollback
-- [relay-options.md](relay-options.md) — why relay deployment is outside the selected topology
+- [relay-options.md](relay-options.md) — the official relay now and the future self-hosted relay boundary
 - [desktop-port-forwarding.md](desktop-port-forwarding.md) — desktop Ports tab and remote VPS port forwarding
 - [distribution.md](distribution.md) — GitHub-built desktop and Android releases
 - [android-eas-fallback.md](android-eas-fallback.md) — optional fork-owned Expo/EAS setup
@@ -31,7 +31,9 @@ The primary clients are:
 - the Electron desktop app on macOS;
 - the Android app on a personal phone.
 
-The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. Clients first reach the daemon directly over Tailscale. A private Cloudflare Tunnel route is a separate phase after release artifacts work.
+The daemon, projects, terminals, Git operations, and agent processes run on a VPS. Codex, Claude Code, and other provider CLIs are installed and authenticated on that VPS. The macOS and Android clients pair through the official Paseo relay at `relay.paseo.sh:443`. The relay carries end-to-end encrypted application frames and requires no inbound VPS port.
+
+Keep a direct Tailscale host saved as the recovery path. A later phase will deploy the external Paseo relay under fork-owned infrastructure and point the same daemon and clients at its endpoint. Cloudflare Tunnel is shelved rather than part of the active rollout.
 
 The VPS daemon is installed from the GitHub Release's native Linux ARM64 archive. The archive bundles Node and runs as a user systemd service. It does not require Docker, a source checkout, or public npm packages.
 
@@ -43,9 +45,9 @@ Electron adds a **Ports** tab beside Files. It discovers TCP listeners owned by 
 
 ## Product boundaries
 
-- Do not use upstream or fork-owned relay infrastructure for HanabiCode releases.
-- Keep direct Tailscale access working so a Cloudflare, identity, DNS, or tunnel failure does not strand the operator.
-- Cloudflare Tunnel activation, hosted Hub, store submission, push infrastructure, and public websites are out of scope until explicitly requested against a named target.
+- Use the official Paseo relay for the current release and keep its endpoint configurable.
+- Keep direct Tailscale access working so a relay or DNS failure does not strand the operator.
+- Self-hosted relay deployment, Cloudflare Tunnel activation, hosted Hub, store submission, push infrastructure, and public websites stay out of scope until explicitly requested against a named target.
 - Paseo does not broker model billing. Provider subscriptions and API usage belong to the provider CLI authenticated on the VPS.
 - Local speech is preferred when it meets the workflow. Paid speech APIs remain opt-in.
 - macOS and Android receive primary manual QA. Browser web is the fast shared-UI harness. Keep Windows, Linux, and iOS buildable when the cost is reasonable, but do not claim manual coverage that did not happen.

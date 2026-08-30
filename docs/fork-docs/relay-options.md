@@ -1,7 +1,20 @@
-# Relay alternatives
+# Relay deployment
 
-HanabiCode does not use or operate a relay. The selected topology is a direct daemon connection over Tailscale, followed by an optional private [Cloudflare Tunnel](cloudflare-tunnel.md) phase.
+HanabiCode uses `relay.paseo.sh:443` over TLS for the current release. This gives macOS and Android the normal Paseo pairing flow without opening a public inbound port on the VPS. Application frames remain end-to-end encrypted between the client and daemon.
 
-Keep `packages/relay` only because it remains part of the inherited build and protocol dependency graph. Do not deploy its Cloudflare Durable Objects adapter, fork the external Paseo relay, set relay endpoints in HanabiCode releases, or direct users to `relay.paseo.sh`.
+The native installer writes the endpoint and TLS policy into the systemd user service. `--relay-endpoint` changes the routed endpoint, `--relay-use-tls true|false` controls transport TLS, and `--no-relay` keeps a direct-only installation. Tailscale remains the saved recovery connection.
 
-Revisit a relay only if direct private networking cannot meet the mobile workflow. A future decision must account for application-layer end-to-end encryption, pairing compatibility, binary tunnel frames, reconnect behavior, bounded queues, service ownership, monitoring, and independent daemon/client upgrades. Reuse the existing reviewed encrypted-channel primitives; do not create new cryptography for convenience.
+## Future self-hosting
+
+Self-host the production implementation from `getpaseo/paseo-relay`, not the Cloudflare Durable Objects adapter in `packages/relay`. The monorepo package remains because the inherited build and encrypted-channel code depend on it, but upstream does not deploy that adapter as the production relay.
+
+Treat self-hosting as infrastructure work. The phase must cover:
+
+- a fork-owned hostname and TLS certificate;
+- deployment and rollback for the Elixir service;
+- reconnect behavior and bounded queues;
+- health checks, logs, metrics, and alerting;
+- compatibility across independently upgraded daemon and clients;
+- end-to-end tests for control messages, binary tunnel frames, Android background/resume, and long-thread loading.
+
+Do not replace or invent cryptography. Reuse Paseo's reviewed encrypted-channel and pairing primitives. After the new endpoint passes those checks, update the native service with the installer and pair each client again.

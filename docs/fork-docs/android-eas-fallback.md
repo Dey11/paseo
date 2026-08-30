@@ -60,7 +60,7 @@ When it finishes:
 1. Download the APK from the Expo build page.
 2. Verify its signing certificate fingerprint.
 3. Install it on Android.
-4. Connect it to the VPS through the direct Tailscale host.
+4. Pair it to the VPS through the configured relay, then confirm the direct Tailscale recovery host.
 5. Confirm a later APK signed by the same key installs over it.
 
 Do not automate a build that has not passed this manual round trip.
