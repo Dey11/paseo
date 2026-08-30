@@ -672,7 +672,7 @@ export async function createPaseoDaemon(
     serviceProxy,
     onChange: createScriptStatusEmitter({
       sessions: () =>
-        wsServer?.listTrustedSessions().map((session) => ({
+        wsServer?.listSessions().map((session) => ({
           emit: (message) => session.emitServerMessage(message),
         })) ?? [],
       serviceProxy,
@@ -954,7 +954,7 @@ export async function createPaseoDaemon(
     onWorkspaceArchived: teardownArchivedWorkspaceRuntime,
     onWorkspacesChanged: async (workspaceIds) => {
       await fanOutReconciledWorkspaceUpdates({
-        sessions: wsServer?.listTrustedSessions() ?? [],
+        sessions: wsServer?.listSessions() ?? [],
         workspaceIds,
         logger,
       });
@@ -1018,20 +1018,20 @@ export async function createPaseoDaemon(
   };
   const markWorkspaceArchivingExternal = (workspaceIds: Iterable<string>, archivingAt: string) => {
     const workspaceIdList = Array.from(workspaceIds);
-    for (const session of wsServer?.listTrustedSessions() ?? []) {
+    for (const session of wsServer?.listSessions() ?? []) {
       session.markWorkspaceArchivingForExternalMutation(workspaceIdList, archivingAt);
     }
   };
   const clearWorkspaceArchivingExternal = (workspaceIds: Iterable<string>) => {
     const workspaceIdList = Array.from(workspaceIds);
-    for (const session of wsServer?.listTrustedSessions() ?? []) {
+    for (const session of wsServer?.listSessions() ?? []) {
       session.clearWorkspaceArchivingForExternalMutation(workspaceIdList);
     }
   };
   const emitWorkspaceUpdatesExternal = async (workspaceIds: Iterable<string>) => {
     const workspaceIdList = Array.from(workspaceIds);
     await Promise.all(
-      (wsServer?.listTrustedSessions() ?? []).map((session) =>
+      (wsServer?.listSessions() ?? []).map((session) =>
         session.emitWorkspaceUpdatesForExternalWorkspaceIds(workspaceIdList),
       ),
     );
@@ -1111,7 +1111,7 @@ export async function createPaseoDaemon(
         warmWorkspaceGitData: async (workspace) => {
           await Promise.all(
             wsServer
-              ?.listTrustedSessions()
+              ?.listSessions()
               .map((session) => session.warmWorkspaceGitDataForWorkspace(workspace)) ?? [],
           );
         },
@@ -1209,7 +1209,27 @@ export async function createPaseoDaemon(
     createDaemonId: dependencies.createHubDaemonId,
     attachSocket: async (socket, options) => {
       if (!wsServer) throw new Error("WebSocket server is not running");
-      await wsServer.attachHubSocket(socket, options);
+      await wsServer.attachExternalSocket(
+        socket,
+        { transport: "hub", hubDaemonId: options.daemonId },
+        {
+          principalId: options.principalId,
+          permissions: options.permissions,
+          hubExecutionAgents: options.agents,
+        },
+        options.sessionProtocol === "legacy"
+          ? {
+              type: "hello",
+              clientId: `hub:${options.daemonId}`,
+              clientType: "hub",
+              protocolVersion: 1,
+            }
+          : undefined,
+      );
+    },
+    updateAttachedPermissions: (principalId, permissions) => {
+      if (!wsServer) throw new Error("WebSocket server is not running");
+      wsServer.updatePrincipalPermissions(principalId, permissions);
     },
     createExecutionAgents: (daemonId) =>
       new DaemonExecutions({
