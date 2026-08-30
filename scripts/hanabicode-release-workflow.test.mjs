@@ -41,6 +41,30 @@ test("the release is draft-first and publishes only after every requested artifa
   );
 });
 
+test("release installs resolve internal packages from this workspace", () => {
+  const packageLock = JSON.parse(
+    readFileSync(new URL("package-lock.json", repositoryRoot), "utf8"),
+  );
+  const nestedInternalPackages = Object.keys(packageLock.packages).filter((packagePath) =>
+    /^packages\/[^/]+\/node_modules\/@getpaseo\//.test(packagePath),
+  );
+
+  assert.deepEqual(
+    nestedInternalPackages,
+    [],
+    `release lockfile contains registry copies of workspace packages: ${nestedInternalPackages.join(", ")}`,
+  );
+
+  const desktopPackage = JSON.parse(
+    readFileSync(new URL("packages/desktop/package.json", repositoryRoot), "utf8"),
+  );
+  assert.equal(
+    desktopPackage.dependencies["@getpaseo/protocol"],
+    "*",
+    "desktop imports protocol directly and must declare the workspace dependency",
+  );
+});
+
 test("the first release set is macOS, Android, and a native Linux ARM64 daemon", () => {
   assert.equal(workflow.jobs.windows, undefined);
   assert.deepEqual(workflow.jobs.macos.strategy.matrix.include, [
